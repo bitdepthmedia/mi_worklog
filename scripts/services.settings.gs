@@ -266,6 +266,110 @@ var SettingsService = (function () {
     ];
     }
 
+  // Additional typed getters and config accessors
+
+  var CACHE_KEY_BUILDINGS = 'settings_buildings_cache';
+  var CACHE_KEY_FUNDING_SOURCES = 'settings_funding_sources_cache';
+  var CACHE_KEY_STAFF_FIELDS = 'settings_staff_fields_cache';
+
+  /**
+   * Get building options from Settings (key: "buildings_json").
+   * Accepts either an array of strings or array of objects with {id,label}.
+   * Caches the normalized array of strings for 10 minutes.
+   * @returns {Array<string>}
+   */
+  function getBuildings() {
+    var cached = cacheGet_(CACHE_KEY_BUILDINGS, CACHE_TTL_MS);
+    if (cached && Array.isArray(cached)) return cached;
+
+    var raw = readSettingsJsonKey_('buildings_json');
+    var list = [];
+    if (Array.isArray(raw)) {
+      for (var i = 0; i < raw.length; i++) {
+        var item = raw[i];
+        if (item == null) continue;
+        if (typeof item === 'string') {
+          var s = String(item).trim();
+          if (s) list.push(s);
+        } else if (typeof item === 'object') {
+          var id = item.id != null ? String(item.id).trim() : '';
+          var label = item.label != null ? String(item.label).trim() : '';
+          var val = (id || label || '').trim();
+          if (val) list.push(val);
+        }
+      }
+    }
+    // no strict fallback for buildings; empty list is acceptable
+    cacheSet_(CACHE_KEY_BUILDINGS, list);
+    return list;
+  }
+
+  /**
+   * Get funding source options from Settings (key: "funding_sources_json").
+   * Returns array of strings; falls back to common options if missing.
+   * Caches for 10 minutes.
+   * @returns {Array<string>}
+   */
+  function getFundingSources() {
+    var cached = cacheGet_(CACHE_KEY_FUNDING_SOURCES, CACHE_TTL_MS);
+    if (cached && Array.isArray(cached) && cached.length) return cached;
+
+    var raw = readSettingsJsonKey_('funding_sources_json');
+    var list = [];
+    if (Array.isArray(raw)) {
+      for (var i = 0; i < raw.length; i++) {
+        var v = raw[i];
+        if (v == null) continue;
+        var s = String(v).trim();
+        if (s) list.push(s);
+      }
+    }
+    if (list.length === 0) {
+      list = [
+        'Title I',
+        'Title III',
+        '31A',
+        'Section 41',
+        'GSRP',
+        'General Funds'
+      ];
+    }
+    cacheSet_(CACHE_KEY_FUNDING_SOURCES, list);
+    return list;
+  }
+
+  /**
+   * Get staff configuration fields model (key: "staff_config_fields_json").
+   * Expected shape:
+   *   { required: ["name","email","building_id","funding_source"], optional: [] }
+   * Returns a normalized object with arrays; provides sensible defaults.
+   * Caches for 10 minutes.
+   * @returns {{required:string[], optional:string[]}}
+   */
+  function getStaffConfigFields() {
+    var cached = cacheGet_(CACHE_KEY_STAFF_FIELDS, CACHE_TTL_MS);
+    if (cached && cached.required && cached.optional) return cached;
+
+    var raw = readSettingsJsonKey_('staff_config_fields_json');
+    var model = { required: ['name','email','building_id','funding_source'], optional: [] };
+    try {
+      if (raw && typeof raw === 'object') {
+        var req = Array.isArray(raw.required) ? raw.required.filter(Boolean) : model.required;
+        var opt = Array.isArray(raw.optional) ? raw.optional.filter(Boolean) : [];
+        model = { required: req, optional: opt };
+      }
+    } catch (e) {
+      // ignore and use default
+    }
+    cacheSet_(CACHE_KEY_STAFF_FIELDS, model);
+    return model;
+  }
+
   // public API
-  return { listActivities: listActivities };
+  return {
+    listActivities: listActivities,
+    getBuildings: getBuildings,
+    getFundingSources: getFundingSources,
+    getStaffConfigFields: getStaffConfigFields
+  };
 })();

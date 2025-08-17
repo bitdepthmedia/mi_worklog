@@ -27,7 +27,7 @@ function bootstrapWorkbook() {
   ]);
 
   seedHeaders_(REQ.STAFF, [
-    ['staff_id','name','email','building_id','role','active'],
+    ['staff_id','name','email','building_id','role','active','funding_source'],
   ]);
 
   seedHeaders_(REQ.STUDENTS, [
@@ -53,7 +53,7 @@ function bootstrapWorkbook() {
 
   // 3) Basic formatting
   autoSize_(REQ.SETTINGS, 1, 3);
-  autoSize_(REQ.STAFF, 1, 6);
+  autoSize_(REQ.STAFF, 1, 7);
   autoSize_(REQ.STUDENTS, 1, 6);
   autoSize_(REQ.CASELOAD, 1, 6);
   autoSize_(REQ.WORKLOG, 1, 8);

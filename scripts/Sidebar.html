@@ -506,6 +506,296 @@
           return { type:'system', summary:'Unexpected error', messages:[] };
         }
       }
+      // ================= Staff Settings (UI + Controller) =================
+
+      var settingsUi = {
+        section: null,
+        status: null,
+        form: null,
+        name: null,
+        email: null,
+        building: null,
+        funding: null,
+        saveBtn: null
+      };
+
+      /**
+       * Build Settings section dynamically to avoid large HTML diffs.
+       */
+      (function buildSettingsSection(){
+        try {
+          var container = document.createElement('div');
+          container.id = 'settingsSection';
+
+          var h2 = document.createElement('h2');
+          h2.textContent = 'Staff Settings';
+          container.appendChild(h2);
+
+          var status = document.createElement('div');
+          status.id = 'settings-status';
+          status.className = 'status';
+          status.setAttribute('role','alert');
+          status.setAttribute('aria-live','polite');
+          container.appendChild(status);
+
+          var form = document.createElement('form');
+          form.id = 'settingsForm';
+          form.onsubmit = function(ev){ ev.preventDefault(); saveStaffSettings(); };
+
+          // Full Name
+          var fieldName = document.createElement('div');
+          fieldName.className = 'field';
+          var lblName = document.createElement('label');
+          lblName.htmlFor = 'staff_name';
+          lblName.innerHTML = 'Full Name<span class="req" aria-hidden="true">*</span>';
+          fieldName.appendChild(lblName);
+          var inpName = document.createElement('input');
+          inpName.type = 'text';
+          inpName.id = 'staff_name';
+          inpName.required = true;
+          inpName.setAttribute('aria-describedby','staff_name-error');
+          fieldName.appendChild(inpName);
+          var errName = document.createElement('div');
+          errName.id = 'staff_name-error';
+          errName.className = 'error-text';
+          errName.setAttribute('role','alert');
+          fieldName.appendChild(errName);
+          form.appendChild(fieldName);
+
+          // Email (read-only)
+          var fieldEmail = document.createElement('div');
+          fieldEmail.className = 'field';
+          var lblEmail = document.createElement('label');
+          lblEmail.htmlFor = 'staff_email';
+          lblEmail.innerHTML = 'Email Address<span class="req" aria-hidden="true">*</span>';
+          fieldEmail.appendChild(lblEmail);
+          var inpEmail = document.createElement('input');
+          inpEmail.type = 'email';
+          inpEmail.id = 'staff_email';
+          inpEmail.required = true;
+          inpEmail.readOnly = true;
+          inpEmail.setAttribute('aria-describedby','staff_email-error');
+          fieldEmail.appendChild(inpEmail);
+          var errEmail = document.createElement('div');
+          errEmail.id = 'staff_email-error';
+          errEmail.className = 'error-text';
+          errEmail.setAttribute('role','alert');
+          fieldEmail.appendChild(errEmail);
+          form.appendChild(fieldEmail);
+
+          // Reporting Building
+          var fieldBldg = document.createElement('div');
+          fieldBldg.className = 'field';
+          var lblBldg = document.createElement('label');
+          lblBldg.htmlFor = 'staff_building';
+          lblBldg.innerHTML = 'Reporting Building<span class="req" aria-hidden="true">*</span>';
+          fieldBldg.appendChild(lblBldg);
+          var selBldg = document.createElement('select');
+          selBldg.id = 'staff_building';
+          selBldg.required = true;
+          selBldg.setAttribute('aria-describedby','staff_building-error');
+          fieldBldg.appendChild(selBldg);
+          var errBldg = document.createElement('div');
+          errBldg.id = 'staff_building-error';
+          errBldg.className = 'error-text';
+          errBldg.setAttribute('role','alert');
+          fieldBldg.appendChild(errBldg);
+          form.appendChild(fieldBldg);
+
+          // Funding Source
+          var fieldFund = document.createElement('div');
+          fieldFund.className = 'field';
+          var lblFund = document.createElement('label');
+          lblFund.htmlFor = 'staff_funding';
+          lblFund.innerHTML = 'Funding Source<span class="req" aria-hidden="true">*</span>';
+          fieldFund.appendChild(lblFund);
+          var selFund = document.createElement('select');
+          selFund.id = 'staff_funding';
+          selFund.required = true;
+          selFund.setAttribute('aria-describedby','staff_funding-error');
+          fieldFund.appendChild(selFund);
+          var errFund = document.createElement('div');
+          errFund.id = 'staff_funding-error';
+          errFund.className = 'error-text';
+          errFund.setAttribute('role','alert');
+          fieldFund.appendChild(errFund);
+          form.appendChild(fieldFund);
+
+          // Save button
+          var saveBtn = document.createElement('button');
+          saveBtn.id = 'saveSettingsBtn';
+          saveBtn.type = 'submit';
+          saveBtn.textContent = 'Save Settings';
+          form.appendChild(saveBtn);
+
+          container.appendChild(form);
+
+          // Attach to DOM (after the entry form)
+          document.body.appendChild(container);
+
+          // Wire refs
+          settingsUi.section = container;
+          settingsUi.status = status;
+          settingsUi.form = form;
+          settingsUi.name = inpName;
+          settingsUi.email = inpEmail;
+          settingsUi.building = selBldg;
+          settingsUi.funding = selFund;
+          settingsUi.saveBtn = saveBtn;
+
+          // Load data
+          google.script.run
+            .withSuccessHandler(initStaffSettings)
+            .withFailureHandler(handleSettingsBootFailure)
+            .SidebarController_loadStaffConfig();
+        } catch (e) {
+          console.error('Settings section init error', e);
+        }
+      })();
+
+      /**
+       * Initialize Settings UI with server-provided data.
+       * @param {{buildings:string[], fundingSources:string[], fields:{required:string[],optional:string[]}, staff:Object}} data
+       */
+      function initStaffSettings(data) {
+        try {
+          // Options
+          clearChildren(settingsUi.building);
+          appendOption(settingsUi.building, '', '-- Select building --');
+          (data.buildings || []).forEach(function (b) {
+            appendOption(settingsUi.building, b, b);
+          });
+
+          clearChildren(settingsUi.funding);
+          appendOption(settingsUi.funding, '', '-- Select funding source --');
+          (data.fundingSources || []).forEach(function (f) {
+            appendOption(settingsUi.funding, f, f);
+          });
+
+          // Values
+          var staff = data.staff || {};
+          settingsUi.name.value = staff.name || '';
+          settingsUi.email.value = staff.email || '';
+          settingsUi.building.value = staff.building_id || '';
+          settingsUi.funding.value = staff.funding_source || '';
+
+          // Basic validation handlers
+          settingsUi.name.addEventListener('input', function(){ validateSettingsField('staff_name'); });
+          settingsUi.building.addEventListener('change', function(){ validateSettingsField('staff_building'); });
+          settingsUi.funding.addEventListener('change', function(){ validateSettingsField('staff_funding'); });
+
+          showSettingsStatus('', null);
+        } catch (e) {
+          console.error('initStaffSettings error', e);
+          showSettingsStatus('Failed to initialize Staff Settings.', 'error');
+        }
+      }
+
+      function handleSettingsBootFailure(err){
+        console.error('Settings boot failure', err);
+        showSettingsStatus('Failed to load Staff Settings.', 'error');
+      }
+
+      function saveStaffSettings() {
+        resetSettingsFieldErrors();
+        if (!validateSettingsForm()) {
+          showSettingsStatus('Please correct the highlighted fields.', 'error');
+          return;
+        }
+        var payload = {
+          name: settingsUi.name.value,
+          email: settingsUi.email.value,
+          building_id: settingsUi.building.value,
+          funding_source: settingsUi.funding.value
+        };
+        setSettingsLoading(true);
+        showSettingsStatus('Saving', null);
+        settingsUi.saveBtn.classList.add('saving');
+
+        google.script.run
+          .withSuccessHandler(function(res){
+            settingsUi.saveBtn.classList.remove('saving');
+            setSettingsLoading(false);
+            showSettingsStatus('Settings saved.', 'success');
+          })
+          .withFailureHandler(function(err){
+            settingsUi.saveBtn.classList.remove('saving');
+            setSettingsLoading(false);
+            var parsed = parseServerError(err);
+            (parsed.messages || []).forEach(function (m) {
+              var msg = m.toLowerCase();
+              if (msg.indexOf('name') !== -1) setFieldError('staff_name', m);
+              else if (msg.indexOf('email') !== -1) setFieldError('staff_email', m);
+              else if (msg.indexOf('building') !== -1) setFieldError('staff_building', m);
+              else if (msg.indexOf('funding') !== -1) setFieldError('staff_funding', m);
+            });
+            showSettingsStatus(parsed.summary || 'Failed to save settings.', 'error');
+          })
+          .SidebarController_saveStaffConfig(payload);
+      }
+
+      function validateSettingsForm(){
+        var ok = true;
+        if (!settingsUi.name.value.trim()){
+          setFieldError('staff_name', 'Full Name is required.');
+          ok = false;
+        }
+        if (!settingsUi.email.value.trim()){
+          setFieldError('staff_email', 'Email is required.');
+          ok = false;
+        }
+        if (!settingsUi.building.value){
+          setFieldError('staff_building', 'Reporting Building is required.');
+          ok = false;
+        }
+        if (!settingsUi.funding.value){
+          setFieldError('staff_funding', 'Funding Source is required.');
+          ok = false;
+        }
+        return ok;
+      }
+
+      function validateSettingsField(fieldId){
+        var prev = document.getElementById(fieldId + '-error');
+        if (prev) prev.textContent = '';
+        var el = document.getElementById(fieldId);
+        if (el) el.classList.remove('invalid');
+
+        if (fieldId === 'staff_name' && !settingsUi.name.value.trim()){
+          setFieldError('staff_name','Full Name is required.'); return false;
+        }
+        if (fieldId === 'staff_email' && !settingsUi.email.value.trim()){
+          setFieldError('staff_email','Email is required.'); return false;
+        }
+        if (fieldId === 'staff_building' && !settingsUi.building.value){
+          setFieldError('staff_building','Reporting Building is required.'); return false;
+        }
+        if (fieldId === 'staff_funding' && !settingsUi.funding.value){
+          setFieldError('staff_funding','Funding Source is required.'); return false;
+        }
+        return true;
+      }
+
+      function resetSettingsFieldErrors(){
+        ['staff_name','staff_email','staff_building','staff_funding'].forEach(function(id){
+          var el = document.getElementById(id);
+          if (el) el.classList.remove('invalid');
+          var err = document.getElementById(id + '-error');
+          if (err) err.textContent = '';
+        });
+      }
+
+      function setSettingsLoading(isLoading){
+        var controls = [settingsUi.name, settingsUi.email, settingsUi.building, settingsUi.funding, settingsUi.saveBtn];
+        controls.forEach(function(c){ if (c) c.disabled = !!isLoading; });
+      }
+
+      function showSettingsStatus(msg, type){
+        if (!settingsUi.status) return;
+        settingsUi.status.textContent = msg || '';
+        settingsUi.status.className = 'status' + (type ? ' ' + type : '');
+        settingsUi.status.style.display = type ? 'block' : 'none';
+      }
     </script>
   </body>
 </html>

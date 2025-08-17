@@ -64,7 +64,7 @@ At the bottom of your spreadsheet you’ll see four tabs (sheets):
 - **Settings** – Define work hours, activity codes, and reporting options.  
 - **Caseload** – List students or clients you serve.  
 - **Worklog** – Your daily time entries appear here.  
-- **PARS** – State (“Pupil Attendance Reporting for Schools”) time-reporting details.  
+- **PARS** – State (“Personnel Activity Report Summary”) time-reporting details.  
 
 Click any tab name to switch views.
 

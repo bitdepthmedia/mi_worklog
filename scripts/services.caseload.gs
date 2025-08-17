@@ -163,16 +163,19 @@ var CaseloadService = (function () {
   /* ===================== helpers (module-private) ===================== */
 
   /**
-   * Find staff by email (Staff sheet headers: staff_id,name,email,building_id,role,active)
+   * Find staff by email (Staff sheet headers: staff_id,name,email,building_id,role,active[,funding_source])
    * @param {string} email
-   * @returns {{staff_id:string,name:string,email:string,building_id:string,role:string,active:any}|null}
+   * @returns {{staff_id:string,name:string,email:string,building_id:string,role:string,active:any,funding_source?:string}|null}
    */
   function findStaffByEmail_(email) {
     if (!email) return null;
     var rows = readTable_(S.STAFF);
     for (var i = 0; i < rows.length; i++) {
       var r = rows[i] || {};
-      if (String(r.email || '').toLowerCase() === String(email).toLowerCase()) return r;
+      if (String(r.email || '').toLowerCase() === String(email).toLowerCase()) {
+        if (typeof r.funding_source === 'undefined' || r.funding_source === null) r.funding_source = '';
+        return r;
+      }
     }
     return null;
   }
