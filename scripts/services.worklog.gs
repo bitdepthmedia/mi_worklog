@@ -1,4 +1,3 @@
-
 var WorklogService = (function(){
   const S = CONFIG.SHEETS;
   function sheet(name){ return SpreadsheetApp.getActive().getSheetByName(name); }
@@ -10,12 +9,13 @@ var WorklogService = (function(){
     const row = [
       Utilities.getUuid(), userEmail, entry.date, entry.minutes, entry.studentId || '', entry.activity, entry.notes, now
     ];
-    LockService.getDocumentLock().waitLock(20000);
+    const lock = LockService.getDocumentLock();
+    lock.waitLock(20000);
     try{
       _append(row);
       AuditService.log('worklog.save', {entry});
     } finally {
-      LockService.getDocumentLock().releaseLock();
+      lock.releaseLock();
     }
     return true;
   }

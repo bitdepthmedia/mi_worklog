@@ -6,61 +6,66 @@ This document orients developers to the codebase without opening every file.
 
 ```
 apps_script_project/
-├── appsscript.json              # GAS project manifest
-├── Code.gs                      # onOpen menu, sidebar launcher, config
-├── controllers.sidebar.gs       # UI bridge (HTML <-> Services)
-├── services.audit.gs            # append-only audit logger (stub)
-├── services.caseload.gs         # caseload + student lookup (stub)
-├── services.pars.gs             # PARS classification + week close (stub)
-├── services.report.gs           # report (re)build pipeline (stub)
-├── services.settings.gs         # read settings (activities, etc.) (stub)
-├── services.validation.gs       # entry validation and policy checks (stub)
-├── services.worklog.gs          # write entries, close week prompt (stub)
-└── Sidebar.html                 # HTML Service UI for entry
+├── appsscript.json              # Manifest (timezone, V8 runtime)
+├── bootstrap.gs                 # Initializes required sheets and headers via CONFIG.SHEETS
+├── Code.gs                      # onOpen menu, sidebar launcher, CONFIG constants (includes Audit)
+├── controllers.sidebar.gs       # UI bridge (HTML ↔ Services)
+├── services.audit.gs            # append-only audit logger
+├── services.caseload.gs         # caseload + student lookup
+├── services.pars.gs             # PARS classification + week close
+├── services.report.gs           # report rebuild pipeline
+├── services.settings.gs         # settings retrieval with caching
+├── services.validation.gs       # entry validation and policy checks
+├── services.worklog.gs          # write entries, close week delegation, audit emission
+└── Sidebar.html                 # HTML Service UI for entry with validation & error handling
 ```
 
-> **Note:** This scaffold is intentionally minimal; each service exposes a thin, testable API. All business logic should live in `services/*.gs`, not in UI or controllers.
+> **Note:** All business logic is implemented within `services/*.gs`; controllers and UI handle orchestration and presentation.
 
 ## File-by-File
 
-- **appsscript.json** — Manifest. Sets timezone, V8 runtime, and webapp defaults.
+- **appsscript.json** — Manifest; sets timezone and V8 runtime.
+- **bootstrap.gs** — Initializes required sheets (Settings, Staff, Students, Caseload, Worklog, Audit, PARS Overrides, Reports) and headers using `CONFIG.SHEETS`.
 - **Code.gs**
   - `onOpen()` adds **Worklog** menu: *Open Sidebar*, *Close Week*, *Rebuild Reports*.
   - `showSidebar()` mounts `Sidebar.html`.
-  - `CONFIG` centralizes sheet names and versioning.
+  - `CONFIG` centralizes sheet names (including **Audit**) and versioning.
 - **controllers.sidebar.gs**
-  - `SidebarController_boot()` returns dropdown data (students, activities).
-  - `SidebarController_save(payload)` validates and writes entries via services.
+  - `SidebarController_boot()` fetches students and activities, shows loading states, and inline error messages.
+  - `SidebarController_save(payload)` invokes `ValidationService.validateEntry()` and `WorklogService.saveEntry()`, and returns success or error to UI.
 - **services.worklog.gs**
-  - `saveEntry(entry, userEmail)` writes to the **Worklog** sheet under a document lock.
-  - `closeWeekPrompt()` prompts for week-ending date and delegates to `PARSService`.
+  - `saveEntry(entry, userEmail)` acquires a document lock, writes to the **Worklog** sheet, and emits audit logs via `AuditService`.
+  - `closeWeekPrompt()` prompts for a week-ending date and delegates to `PARSService.closeWeek()`.
 - **services.validation.gs**
-  - `validateEntry(e)` enforces required fields and will house allowability, overlap, and permission checks.
+  - `validateEntry(entry, userEmail)` enforces required fields, a valid date, minutes > 0; checks role/activity allowability, prevents entry overlap, and enforces permission constraints.
 - **services.caseload.gs**
-  - `listStudents()` returns effective-dated student list for the active staff/building.
+  - `listStudents(staffId, date)` returns only active students for the given staff and date, using effective-dated filtering.
 - **services.pars.gs**
-  - `classify(entry)` determines in-grant vs out-of-grant minutes.
-  - `closeWeek(weekEnding)` aggregates a period and writes an immutable summary.
+  - `classify(entry)` computes in-grant vs out-of-grant minutes per PARS rules.
+  - `closeWeek(weekEnding)` aggregates entries for the period, writes a protected **Reports – Week {end}** sheet, and records adjustments immutably.
 - **services.report.gs**
-  - `rebuildAll()` recomputes summaries from **Worklog** + **PARS Overrides**.
+  - `rebuildAll()` recomputes all reports from **Worklog** and **PARS Overrides**, using batch operations and optional CSV/PDF export.
 - **services.audit.gs**
-  - `log(action, payload)` appends structured audit rows with timestamp/user.
+  - `log(action, payload, userEmail)` appends `[timestamp, user, action, payload JSON, checksum]` rows to the **Audit** sheet.
 - **services.settings.gs**
-  - `listActivities()` returns activity codes/labels from **Settings**.
+  - `listActivities()` reads activity codes and labels from the **Settings** sheet with TTL-based caching.
+  - Typed getters (`getRoles()`, `getBuildings()`) fetch and cache roles and buildings from **Settings**.
 - **Sidebar.html**
-  - Minimal data-entry UI; uses `google.script.run` to call controller functions.
+  - Enhanced UI with client-side validation, loading states, and inline error messages; uses `google.script.run` to call controller methods and populate dropdowns.
 
 ## Expected Sheets
 
 - **Settings** (reference lists, activity codes, flags)
 - **Staff**, **Students**, **Caseload** (IDs, names, effective dates)
 - **Worklog** (tall table of entries)
+- **Audit** (append-only audit log)
 - **PARS Overrides** (manual adjustments)
 - **Reports – {period}** (generated + protected)
 
 ## How to Run
 
 1. Open the spreadsheet → **Extensions ▸ Apps Script**.
-2. Create files matching the map above (or import the scaffold).
-3. Reload the spreadsheet → menu **Worklog** appears.
-4. **Worklog ▸ Open Sidebar** to enter a test row.
+2. Import the project files into the Apps Script project (including `bootstrap.gs`).
+3. In the Apps Script editor, run the `bootstrap()` function to initialize required sheets and headers.
+4. Save and reload the spreadsheet → **Worklog** menu appears.
+5. **Worklog ▸ Open Sidebar** to enter a test row.

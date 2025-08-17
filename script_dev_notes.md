@@ -1,9 +1,9 @@
 # Worklog Apps Script — Developer Notes
 
 ## Goals & Principles
-- **Script‑first**: no user‑editable formulas. All logic in services.
+- **Script-first**: no user-editable formulas. All logic in services.
 - **Stable UX**: Sidebar/modal UI with validated inputs; protected ranges for data sheets.
-- **Auditability**: append‑only logs; **Close Week** produces immutable summaries.
+- **Auditability**: append-only logs; **Close Week** produces immutable summaries.
 - **Separation of concerns**: UI ↔ Controller ↔ Services ↔ Sheets.
 
 ## Data Model (recommended columns)
@@ -31,31 +31,31 @@
   - Emits audits via `AuditService`.
   - Exposes `closeWeekPrompt()`; delegates heavy lifting to `PARSService`.
 - **CaseloadService**
-  - Effective‑date filters; return only active students for staff+date.
-  - Future: group sessions and bulk assignment helpers.
+  - Effective-date filters; return only active students for staff+date.
 - **PARSService**
-  - `classify(entry)` → in‑grant/out‑of‑grant minutes.
+  - `classify(entry)` → in-grant/out-of-grant minutes.
   - `closeWeek(weekEnding)` → aggregate, write **Reports – Week {end}**, protect it.
-  - Adjustment model: post‑closure changes recorded as **adjustment rows**, never rewrites.
+  - Adjustment model: post-closure changes recorded as **adjustment rows**, never rewrites.
 - **ReportService**
   - Rebuild summaries over ranges; export CSV/PDF via `DriveApp` if needed.
 - **AuditService**
   - `log(action, payload)` writes `[ts, user, action, json, checksum]` to **Audit** sheet.
 - **SettingsService**
-  - Typed getters: activities, roles, buildings. Cache in `PropertiesService` with TTL.
+  - `listActivities()`: reads from Settings sheet with TTL-based caching.
+  - Typed getters: roles, buildings; cache in `PropertiesService` with TTL.
 
 ## UI Flow
 1. `onOpen()` adds **Worklog** menu.
 2. `showSidebar()` mounts **Sidebar.html**.
-3. `SidebarController_boot()` hydrates dropdowns.
+3. `SidebarController_boot()` hydrates dropdowns and shows loading states and inline error messages.
 4. User submits → `SidebarController_save(payload)` → `ValidationService.validateEntry()` → `WorklogService.saveEntry()`.
 5. Close a week from menu → `WorklogService.closeWeekPrompt()` → `PARSService.closeWeek()` → generate & lock report.
 
 ## Triggers & Guards
 - **onOpen**: menu install.
-- **Time‑driven** (optional): nightly rebuilds, stale‑cache clearing.
+- **Time-driven**: nightly rebuilds and stale-cache clearing implemented.
 - **LockService**: wrap writes; avoid concurrent edits.
-- **Protection API**: lock **Reports – Week {end}** and non‑UI sheets.
+- **Protection API**: lock **Reports – Week {end}** and non-UI sheets.
 
 ## Error Handling
 - Throw descriptive errors in services; show concise alerts in UI.
@@ -75,10 +75,18 @@
   - `clasp push`
 - Set spreadsheet sharing/protection rules.
 
+## Completed Implementations
+- Lock handling bug fixed in `WorklogService.saveEntry`.
+- `AuditService.log` fully implemented; Audit sheet created with hash/checksum utility.
+- `ValidationService.validateEntry`: comprehensive validation (required fields, allowability, overlap prevention, permission checks).
+- `SettingsService.listActivities`: reads from Settings sheet with TTL-based caching.
+- `CaseloadService.listStudents`: effective-dated filtering implemented.
+- `PARSService.classify` & `PARSService.closeWeek()`: classification and weekly aggregation with immutable report generation and sheet protection.
+- `CONFIG.SHEETS` unified across all service files.
+- Webapp manifest access removed for security.
+- Client-side validation & error handling in `Sidebar.html` (loading states & inline error messages).
+- Server-side validation with role/activity allowability, overlap detection, permissions.
+- Caching systems with TTL across services.
+
 ## Roadmap (next tasks)
-- Implement `SettingsService` readers.
-- Implement effective‑dated `CaseloadService.listStudents(date, staff_id)`.
-- Flesh out `ValidationService`: allowability, overlap, permission checks.
-- Implement `PARSService.closeWeek()` (aggregation + locking).
 - Add **bulk entry modal** in UI and keyboard shortcuts.
-- Add **Audit** sheet structure + hash/checksum utility.

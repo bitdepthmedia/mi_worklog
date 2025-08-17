@@ -2,9 +2,5 @@
 {
   "timeZone": "America/Detroit",
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8",
-  "webapp": {
-    "executeAs": "USER_DEPLOYING",
-    "access": "ANYONE"
-  }
+  "runtimeVersion": "V8"
 }
