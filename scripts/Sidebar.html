@@ -1,0 +1,59 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, Arial, sans-serif; padding: 12px; }
+      label { display:block; margin-top:8px; font-weight:600; }
+      input, select, textarea { width:100%; padding:6px; margin-top:4px; }
+      button { margin-top:12px; }
+      .row { display:flex; gap:8px; }
+      .row > * { flex:1; }
+      small { color:#666; }
+    </style>
+  </head>
+  <body>
+    <h2>Worklog Entry</h2>
+    <div class="row">
+      <div>
+        <label>Date</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label>Minutes</label>
+        <input type="number" id="minutes" min="5" step="5">
+      </div>
+    </div>
+    <label>Student</label>
+    <select id="student"></select>
+    <label>Activity</label>
+    <select id="activity"></select>
+    <label>Notes <small>(optional)</small></label>
+    <textarea id="notes" rows="3"></textarea>
+    <button onclick="save()">Save Entry</button>
+    <script>
+      google.script.run.withSuccessHandler(init).SidebarController_boot();
+      function init(data){
+         const student = document.getElementById('student');
+         data.students.forEach(s => {
+           const opt = document.createElement('option'); opt.value=s.id; opt.textContent=s.name; student.appendChild(opt);
+         });
+         const activity = document.getElementById('activity');
+         data.activities.forEach(a => {
+           const opt = document.createElement('option'); opt.value=a.code; opt.textContent=a.label; activity.appendChild(opt);
+         });
+      }
+      function save(){
+        const payload = {
+          date: document.getElementById('date').value,
+          minutes: Number(document.getElementById('minutes').value),
+          studentId: document.getElementById('student').value || null,
+          activity: document.getElementById('activity').value,
+          notes: document.getElementById('notes').value || ''
+        };
+        google.script.run.withSuccessHandler(() => alert('Saved')).SidebarController_save(payload);
+      }
+    </script>
+  </body>
+</html>
