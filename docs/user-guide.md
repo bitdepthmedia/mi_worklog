@@ -76,7 +76,8 @@ Open the sidebar from the menu: **Worklog → Open Sidebar**. The sidebar contai
 - **Student / Case** (optional): Select a caseload entry.  
 - **Notes** (optional): Add comments or context.  
 - **Save Entry** button: Validates and records your time.  
-- **Clear Form** button: Resets all fields.  
+- **Clear Form** button: Resets all fields.
+- **Staff Settings** section: Configure your staff profile including full name, email address (read-only), reporting building, and funding source.
 
 Validation errors (e.g. end time before start time) appear inline with red text.
 
@@ -85,6 +86,18 @@ Use the **Worklog** menu for these commands:
 - **Open Sidebar** – Add a new time entry.  
 - **Close Week** – Lock the current week and generate reports.  
 - **Rebuild Reports** – Re-calculate all audit-ready summaries from scratch.  
+
+### 3.4 Staff Settings
+
+Access **Staff Settings** via the sidebar: in Google Sheets, select **Worklog → Open Sidebar**, then scroll to the **Staff Settings** section below the entry form.
+Here you can configure:
+
+- **Full Name**: Your display name (required).
+- **Email Address**: Your account email (read-only).
+- **Reporting Building**: Select from buildings configured in **Settings**.
+- **Funding Source**: Select from funding sources (default options: Title I, Title III, 31A, Section 41, GSRP, General Funds).
+
+Click **Save Settings** to persist your profile. These details integrate with validation and audit systems and appear in reports.
 
 ## 4. Core Features
 
@@ -125,6 +138,8 @@ Every time you save, MI Worklog logs an audit entry behind the scenes. When you 
 This combination of validation, automation, and an unalterable history means your logs are always accurate and ready for any audit.
 
 ## 5. Daily Usage
+
+Before recording daily entries, ensure your staff profile is up to date by opening the **Staff Settings** section in the sidebar (**Worklog → Open Sidebar**). Your email address is read-only and auto-populated from your session.
 
 Follow these steps each day to record your work:
 

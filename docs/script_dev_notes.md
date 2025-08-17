@@ -14,7 +14,7 @@
 ### Caseload
 `staff_id, student_id, start_date, end_date, services...`
 ### Staff
-`staff_id, name, email, building_id, role`
+`staff_id, name, email, building_id, role, funding_source`
 ### Settings
 `activity_code, label, allowability, pars_category, min_increment, ...`
 ### PARS Overrides
@@ -43,13 +43,16 @@
 - **SettingsService**
   - `listActivities()`: reads from Settings sheet with TTL-based caching.
   - Typed getters: roles, buildings; cache in `PropertiesService` with TTL.
+  - `getFundingSources()`: fetches funding sources dropdown values with TTL-based caching.
+  - `getStaffConfigFields()`: fetches staff configuration field metadata with TTL-based caching.
 
 ## UI Flow
 1. `onOpen()` adds **Worklog** menu.
 2. `showSidebar()` mounts **Sidebar.html**.
 3. `SidebarController_boot()` hydrates dropdowns and shows loading states and inline error messages.
-4. User submits → `SidebarController_save(payload)` → `ValidationService.validateEntry()` → `WorklogService.saveEntry()`.
-5. Close a week from menu → `WorklogService.closeWeekPrompt()` → `PARSService.closeWeek()` → generate & lock report.
+4. `SidebarController_loadStaffConfig()` hydrates the Staff Settings section, loading buildings, funding sources, field metadata, and the current staff record.
+5. User submits → `SidebarController_save(payload)` → `ValidationService.validateEntry()` → `WorklogService.saveEntry()`.
+6. Close a week from menu → `WorklogService.closeWeekPrompt()` → `PARSService.closeWeek()` → generate & lock report.
 
 ## Triggers & Guards
 - **onOpen**: menu install.
@@ -87,6 +90,7 @@
 - Client-side validation & error handling in `Sidebar.html` (loading states & inline error messages).
 - Server-side validation with role/activity allowability, overlap detection, permissions.
 - Caching systems with TTL across services.
+- **Staff Settings** feature implemented: dynamic UI section in `Sidebar.html`, server endpoints `SidebarController_loadStaffConfig()` & `SidebarController_saveStaffConfig()`, new `SettingsService` accessors (`getBuildings()`, `getFundingSources()`, `getStaffConfigFields()`), and `bootstrap.gs` extended to include `funding_source` column in the **Staff** sheet.
 
 ## Roadmap (next tasks)
 - Add **bulk entry modal** in UI and keyboard shortcuts.
