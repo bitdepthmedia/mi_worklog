@@ -1,802 +1,99 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <style>
-      :root{
-        --danger:#d93025;
-        --danger-bg:#fdecea;
-        --success:#0f9d58;
-        --success-bg:#e6f4ea;
-        --muted:#666;
-        --border:#dadce0;
-        --primary:#1a73e8;
-      }
-      body { font-family: system-ui, Arial, sans-serif; padding: 12px; }
-      label { display:block; margin-top:8px; font-weight:600; }
-      .req { color: var(--danger); margin-left: 4px; }
-      input, select, textarea { width:100%; padding:6px; margin-top:4px; border:1px solid var(--border); border-radius:4px; }
-      input.invalid, select.invalid, textarea.invalid { border-color: var(--danger); outline: none; }
-      small { color: var(--muted); }
-      button { margin-top:12px; padding:8px 12px; border-radius:6px; border:1px solid var(--primary); background:var(--primary); color:#fff; cursor:pointer; }
-      button[disabled]{ opacity:0.7; cursor:not-allowed; }
-      .row { display:flex; gap:8px; }
-      .row > * { flex:1; }
-      .error-text { color: var(--danger); font-size: 12px; margin-top: 4px; }
-      .status { margin: 8px 0 12px; padding: 8px 10px; border-radius:6px; border:1px solid transparent; display:none; }
-      .status.success { display:block; border-color: var(--success); background: var(--success-bg); color: var(--success); }
-      .status.error { display:block; border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
-      .visually-hidden { position:absolute !important; height:1px; width:1px; overflow:hidden; clip:rect(1px,1px,1px,1px); white-space:nowrap; }
-      .hint { font-size:12px; color: var(--muted); margin-top: 4px; }
-      .field { margin-bottom: 6px; }
-      .saving::after {
-        content: '…';
-        animation: ellipses 1.2s infinite steps(4,end);
-        margin-left: 2px;
-      }
-      @keyframes ellipses {
-        0% { content: ''; }
-        25% { content: '.'; }
-        50% { content: '..'; }
-        75% { content: '...'; }
-      }
-    </style>
-  </head>
-  <body>
-    <h2>Worklog Entry</h2>
-
-    <div id="status" class="status" role="alert" aria-live="polite"></div>
-
-    <form id="entryForm" onsubmit="event.preventDefault(); save();">
+<head>
+  <meta charset="UTF-8" />
+  <base target="_top">
+  <style>
+    :root { --bg:#fafbfc; --fg:#111; --muted:#666; --pri:#1a73e8; --border:#e5e7eb; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+    .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .field { margin: 8px 0 12px; }
+    label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input[type="text"], select, textarea { width:100%; box-sizing: border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+    .row { display:flex; gap:8px; }
+    .row .field { flex:1; }
+    .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    button { background:var(--pri); color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .footer { margin-top:12px; font-size:11px; color:var(--muted); }
+    .error { color:#b00020; font-size:12px; margin:6px 0 0; }
+    .success { color:#1b5e20; font-size:12px; margin:6px 0 0; }
+    .stack { display:flex; flex-direction:column; gap:8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Add Worklog Task</h2>
+    <div class="stack">
       <div class="row">
-        <div>
-          <label for="date">Date<span class="req" aria-hidden="true">*</span></label>
-          <input type="date" id="date" required aria-describedby="date-error date-hint">
-          <div id="date-hint" class="hint">No more than 7 days in the future.</div>
-          <div id="date-error" class="error-text" role="alert"></div>
+        <div class="field">
+          <label for="start">Start Time (HH:MM AM/PM)</label>
+          <input id="start" type="text" placeholder="7:50 AM" autocomplete="off" />
         </div>
-        <div>
-          <label for="minutes">Minutes<span class="req" aria-hidden="true">*</span></label>
-          <input type="number" id="minutes" inputmode="numeric" required aria-describedby="minutes-error minutes-hint" min="5" step="5" placeholder="e.g. 15">
-          <div id="minutes-hint" class="hint">Must be a positive multiple of <span id="minutes-increment">5</span> minutes.</div>
-          <div id="minutes-error" class="error-text" role="alert"></div>
+        <div class="field">
+          <label for="end">End Time (HH:MM AM/PM)</label>
+          <input id="end" type="text" placeholder="9:10 AM" autocomplete="off" />
         </div>
       </div>
 
       <div class="field">
-        <label for="student">Student</label>
-        <select id="student" aria-describedby="student-error"></select>
-        <div id="student-error" class="error-text" role="alert"></div>
+        <label>What did you work on?</label>
+        <select id="taskOption"></select>
+        <div class="hint">Or type your own below</div>
+        <input id="taskText" type="text" placeholder="e.g., Small group reading intervention" />
       </div>
 
-      <div class="field">
-        <label for="activity">Activity<span class="req" aria-hidden="true">*</span></label>
-        <select id="activity" required aria-describedby="activity-error"></select>
-        <div id="activity-error" class="error-text" role="alert"></div>
+      <div>
+        <button id="submit">Add Task</button>
+        <div class="error" id="error" hidden></div>
+        <div class="success" id="success" hidden></div>
       </div>
-
-      <div class="field">
-        <label for="notes">Notes <small>(optional)</small></label>
-        <textarea id="notes" rows="3" aria-describedby="notes-error"></textarea>
-        <div id="notes-error" class="error-text" role="alert"></div>
-      </div>
-
-      <button id="saveBtn" type="submit">Save Entry</button>
-    </form>
-
-    <script>
-      /**
-       * Cached settings and UI refs.
-       * @type {{activities:Array<object>, defaultMinIncrement:number, activityIndex:Object<string,object>}}
-       */
-      var settingsCache = { activities: [], defaultMinIncrement: 5, activityIndex: {} };
-
-      var ui = {
-        form: null,
-        status: null,
-        date: null,
-        minutes: null,
-        minutesIncrementText: null,
-        student: null,
-        activity: null,
-        notes: null,
-        saveBtn: null
-      };
-
-      // Bootstrap
-      google.script.run
-        .withSuccessHandler(init)
-        .withFailureHandler(handleBootFailure)
-        .SidebarController_boot();
-
-      /**
-       * Initialize UI with server-provided data.
-       * @param {{students:Array<{id:string,name:string}>, activities:Array<{code:string,label:string,min_increment?:number}>}} data
-       */
-      function init(data) {
-        try {
-          // Cache UI refs
-          ui.form = document.getElementById('entryForm');
-          ui.status = document.getElementById('status');
-          ui.date = document.getElementById('date');
-          ui.minutes = document.getElementById('minutes');
-          ui.minutesIncrementText = document.getElementById('minutes-increment');
-          ui.student = document.getElementById('student');
-          ui.activity = document.getElementById('activity');
-          ui.notes = document.getElementById('notes');
-          ui.saveBtn = document.getElementById('saveBtn');
-
-          // Populate students
-          clearChildren(ui.student);
-          appendOption(ui.student, '', '-- Select student (optional) --');
-          (data.students || []).forEach(function (s) {
-            appendOption(ui.student, s.id, s.name);
-          });
-
-          // Populate activities
-          clearChildren(ui.activity);
-          appendOption(ui.activity, '', '-- Select activity --');
-          settingsCache.activities = Array.isArray(data.activities) ? data.activities : [];
-          settingsCache.activityIndex = buildActivityIndex(settingsCache.activities);
-          (settingsCache.activities).forEach(function (a) {
-            appendOption(ui.activity, a.code, a.label || a.code);
-          });
-
-          // Derive default minutes increment from Settings/activities
-          settingsCache.defaultMinIncrement = deriveDefaultMinIncrement(settingsCache.activities) || 5;
-          applyMinutesConstraints(settingsCache.defaultMinIncrement);
-
-          // Set date defaults and constraints
-          setDefaultDateAndLimits();
-
-          // Wire events
-          ui.activity.addEventListener('change', onActivityChanged);
-          ui.minutes.addEventListener('input', function(){ validateField('minutes'); });
-          ui.date.addEventListener('change', function(){ validateField('date'); });
-
-          // First render: clear status
-          showStatus('', null);
-        } catch (e) {
-          console.error('Init error', e);
-          showStatus('Failed to initialize sidebar. Please close and reopen.', 'error');
-        }
-      }
-
-      /**
-       * Failure handler for boot.
-       * @param {*} err
-       */
-      function handleBootFailure(err) {
-        console.error('Boot failure', err);
-        showStatus('Failed to load settings. Please close and reopen the sidebar.', 'error');
-      }
-
-      /**
-       * Save handler - validates client-side then posts to server.
-       * Keeps state on error; clears on success.
-       */
-      function save() {
-        resetFieldErrors();
-        if (!validateForm()) {
-          showStatus('Please correct the highlighted fields.', 'error');
-          return;
-        }
-
-        var payload = {
-          date: ui.date.value,
-          minutes: Number(ui.minutes.value),
-          studentId: ui.student.value || null,
-          activity: ui.activity.value,
-          notes: ui.notes.value || ''
-        };
-
-        setLoading(true);
-        showStatus('Saving', null);
-        ui.saveBtn.classList.add('saving');
-
-        google.script.run
-          .withSuccessHandler(function () {
-            ui.saveBtn.classList.remove('saving');
-            setLoading(false);
-            showStatus('Entry saved successfully.', 'success');
-            clearFormAfterSuccess();
-          })
-          .withFailureHandler(function (err) {
-            ui.saveBtn.classList.remove('saving');
-            setLoading(false);
-            handleSaveFailure(err);
-          })
-          .SidebarController_save(payload);
-      }
-
-      /**
-       * Handle save failures with specific parsing and inline feedback.
-       * @param {*} err
-       */
-      function handleSaveFailure(err) {
-        var parsed = parseServerError(err);
-        console.error('Save failure', { err: err, parsed: parsed });
-
-        // Map messages to fields heuristically
-        (parsed.messages || []).forEach(function (m) {
-          var msg = m.toLowerCase();
-          if (msg.indexOf('date') !== -1) setFieldError('date', m);
-          else if (msg.indexOf('minute') !== -1) setFieldError('minutes', m);
-          else if (msg.indexOf('activity') !== -1) setFieldError('activity', m);
-          else if (msg.indexOf('student') !== -1) setFieldError('student', m);
-        });
-
-        // Decide banner message
-        if (parsed.type === 'validation') {
-          showStatus('Validation error: ' + (parsed.summary || 'Please review the fields.'), 'error');
-        } else if (parsed.type === 'permission') {
-          showStatus('Permission error: ' + (parsed.summary || 'You are not permitted to perform this action.'), 'error');
-        } else if (parsed.type === 'network') {
-          showStatus('Network error. Check your connection and try again.', 'error');
-        } else {
-          showStatus('System error. Please try again or contact an administrator.', 'error');
-        }
-      }
-
-      /**
-       * Client-side validation of the form.
-       * @returns {boolean}
-       */
-      function validateForm() {
-        var ok = true;
-
-        // Date: required and not > 7 days future
-        var dateVal = ui.date.value;
-        if (!dateVal) {
-          setFieldError('date', 'Date is required.');
-          ok = false;
-        } else {
-          var d = new Date(dateVal + 'T00:00:00');
-          var now = new Date();
-          var futureLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-          if (d > futureLimit) {
-            setFieldError('date', 'Date may not be more than 7 days in the future.');
-            ok = false;
-          }
-        }
-
-        // Activity: required
-        if (!ui.activity.value) {
-          setFieldError('activity', 'Activity is required.');
-          ok = false;
-        }
-
-        // Minutes: required, > 0, reasonable (<= 600), multiple of step
-        var step = getCurrentIncrement();
-        var minNum = Number(ui.minutes.value);
-        if (!ui.minutes.value || isNaN(minNum)) {
-          setFieldError('minutes', 'Minutes are required.');
-          ok = false;
-        } else {
-          if (minNum <= 0) {
-            setFieldError('minutes', 'Minutes must be greater than 0.');
-            ok = false;
-          } else if (minNum > 600) {
-            setFieldError('minutes', 'Minutes appear excessive (max 600).');
-            ok = false;
-          } else if (step > 0 && (minNum % step !== 0)) {
-            setFieldError('minutes', 'Minutes must be a multiple of ' + step + '.');
-            ok = false;
-          }
-        }
-
-        return ok;
-      }
-
-      /**
-       * Validate a single field by id.
-       * @param {'date'|'minutes'|'activity'|'student'|'notes'} fieldId
-       */
-      function validateField(fieldId) {
-        var prev = document.getElementById(fieldId + '-error');
-        if (prev) prev.textContent = '';
-        var el = document.getElementById(fieldId);
-        if (el) el.classList.remove('invalid');
-
-        if (fieldId === 'date') {
-          var dv = ui.date.value;
-          if (!dv) { setFieldError('date', 'Date is required.'); return false; }
-          var d = new Date(dv + 'T00:00:00');
-          var now = new Date();
-          var futureLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-          if (d > futureLimit) { setFieldError('date', 'Date may not be more than 7 days in the future.'); return false; }
-          return true;
-        }
-
-        if (fieldId === 'minutes') {
-          var step = getCurrentIncrement();
-          var minNum = Number(ui.minutes.value);
-          if (!ui.minutes.value || isNaN(minNum)) { setFieldError('minutes', 'Minutes are required.'); return false; }
-          if (minNum <= 0) { setFieldError('minutes', 'Minutes must be greater than 0.'); return false; }
-          if (minNum > 600) { setFieldError('minutes', 'Minutes appear excessive (max 600).'); return false; }
-          if (step > 0 && (minNum % step !== 0)) { setFieldError('minutes', 'Minutes must be a multiple of ' + step + '.'); return false; }
-          return true;
-        }
-
-        if (fieldId === 'activity') {
-          if (!ui.activity.value) { setFieldError('activity', 'Activity is required.'); return false; }
-          return true;
-        }
-
-        return true;
-      }
-
-      /**
-       * Called when activity changes; applies per-activity minutes increment.
-       */
-      function onActivityChanged() {
-        var code = ui.activity.value;
-        var inc = settingsCache.defaultMinIncrement;
-        if (code && settingsCache.activityIndex[code] && Number(settingsCache.activityIndex[code].min_increment) > 0) {
-          inc = Number(settingsCache.activityIndex[code].min_increment);
-        }
-        applyMinutesConstraints(inc);
-        // Re-validate minutes with new step
-        if (ui.minutes.value) validateField('minutes');
-      }
-
-      /**
-       * Apply min/step on minutes and update hint text.
-       * @param {number} inc
-       */
-      function applyMinutesConstraints(inc) {
-        var step = (Number(inc) > 0 ? Number(inc) : 5);
-        ui.minutes.min = String(step);
-        ui.minutes.step = String(step);
-        ui.minutesIncrementText.textContent = String(step);
-      }
-
-      /**
-       * Set today's date and reasonable limits.
-       */
-      function setDefaultDateAndLimits() {
-        var now = new Date();
-        var todayIso = toYMD(now);
-        var minPast = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()); // 1 year back
-        var futureLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7);
-
-        ui.date.value = todayIso;
-        ui.date.min = toYMD(minPast);
-        ui.date.max = toYMD(futureLimit);
-      }
-
-      /**
-       * Build a code->activity index.
-       * @param {Array<object>} list
-       */
-      function buildActivityIndex(list) {
-        var idx = {};
-        (list || []).forEach(function (a) { if (a && a.code) idx[a.code] = a; });
-        return idx;
-      }
-
-      /**
-       * Heuristic default minutes increment from activities.
-       * Picks the smallest declared min_increment; falls back to 5.
-       * @param {Array<object>} activities
-       * @returns {number}
-       */
-      function deriveDefaultMinIncrement(activities) {
-        var nums = [];
-        (activities || []).forEach(function (a) {
-          var n = Number(a && a.min_increment);
-          if (!isNaN(n) && n > 0) nums.push(n);
-        });
-        if (nums.length === 0) return 5;
-        nums.sort(function(a,b){ return a-b; });
-        return nums[0];
-      }
-
-      /**
-       * Get current increment based on selected activity or default.
-       * @returns {number}
-       */
-      function getCurrentIncrement() {
-        var code = ui.activity.value;
-        if (code && settingsCache.activityIndex[code] && Number(settingsCache.activityIndex[code].min_increment) > 0) {
-          return Number(settingsCache.activityIndex[code].min_increment);
-        }
-        return settingsCache.defaultMinIncrement || 5;
-      }
-
-      function toYMD(d) {
-        var y = d.getFullYear();
-        var m = d.getMonth() + 1;
-        var day = d.getDate();
-        return y + '-' + (m<10?'0':'') + m + '-' + (day<10?'0':'') + day;
-      }
-
-      function appendOption(sel, value, label) {
-        var opt = document.createElement('option');
-        opt.value = String(value == null ? '' : value);
-        opt.textContent = String(label == null ? value : label);
-        sel.appendChild(opt);
-      }
-
-      function clearChildren(el) {
-        while (el && el.firstChild) el.removeChild(el.firstChild);
-      }
-
-      function setLoading(isLoading) {
-        var controls = [ui.date, ui.minutes, ui.student, ui.activity, ui.notes, ui.saveBtn];
-        controls.forEach(function (c) {
-          if (c) c.disabled = !!isLoading;
-        });
-      }
-
-      function showStatus(msg, type) {
-        if (!ui.status) return;
-        ui.status.textContent = msg || '';
-        ui.status.className = 'status' + (type ? ' ' + type : '');
-        if (!type) {
-          ui.status.style.display = 'none';
-        } else {
-          ui.status.style.display = 'block';
-        }
-      }
-
-      function resetFieldErrors() {
-        ['date','minutes','student','activity','notes'].forEach(function (id) {
-          var el = document.getElementById(id);
-          if (el) el.classList.remove('invalid');
-          var err = document.getElementById(id + '-error');
-          if (err) err.textContent = '';
-        });
-      }
-
-      function setFieldError(fieldId, message) {
-        var el = document.getElementById(fieldId);
-        if (el) el.classList.add('invalid');
-        var err = document.getElementById(fieldId + '-error');
-        if (err) err.textContent = String(message || 'Invalid value.');
-      }
-
-      function clearFormAfterSuccess() {
-        try {
-          ui.form.reset();
-          // Re-apply defaults and constraints after reset
-          applyMinutesConstraints(settingsCache.defaultMinIncrement || 5);
-          setDefaultDateAndLimits();
-          resetFieldErrors();
-        } catch (e) {
-          console.error('Form reset error', e);
-        }
-      }
-
-      /**
-       * Parse server error into type + messages.
-       * Types: validation | permission | network | system
-       * @param {*} err
-       * @returns {{type:string, summary:string, messages:string[]}}
-       */
-      function parseServerError(err) {
-        try {
-          var text = '';
-          if (!err) return { type:'system', summary:'Unknown error', messages:[] };
-          if (typeof err === 'string') text = err;
-          else if (err.message) text = String(err.message);
-          else text = String(err);
-
-          // Common Apps Script network-ish signals
-          var tLower = text.toLowerCase();
-          if (tLower.indexOf('timed out') !== -1 || tLower.indexOf('network') !== -1) {
-            return { type:'network', summary:text, messages:[text] };
-          }
-
-          // Validation pattern produced by server (ValidationService)
-          if (tLower.indexOf('validation failed:') !== -1) {
-            var list = text.split(':').slice(1).join(':').split(';').map(function(s){ return s.trim(); }).filter(Boolean);
-            return { type:'validation', summary:list[0] || 'Validation failed', messages:list };
-          }
-
-          // Permission/role errors
-          if (tLower.indexOf('not permitted') !== -1 || tLower.indexOf('no staff record') !== -1 || tLower.indexOf('role') !== -1) {
-            return { type:'permission', summary:text, messages:[text] };
-          }
-
-          // Fallback system error
-          return { type:'system', summary:text, messages:[text] };
-        } catch (e) {
-          console.error('parseServerError exception', e);
-          return { type:'system', summary:'Unexpected error', messages:[] };
-        }
-      }
-      // ================= Staff Settings (UI + Controller) =================
-
-      var settingsUi = {
-        section: null,
-        status: null,
-        form: null,
-        name: null,
-        email: null,
-        building: null,
-        funding: null,
-        saveBtn: null
-      };
-
-      /**
-       * Build Settings section dynamically to avoid large HTML diffs.
-       */
-      (function buildSettingsSection(){
-        try {
-          var container = document.createElement('div');
-          container.id = 'settingsSection';
-
-          var h2 = document.createElement('h2');
-          h2.textContent = 'Staff Settings';
-          container.appendChild(h2);
-
-          var status = document.createElement('div');
-          status.id = 'settings-status';
-          status.className = 'status';
-          status.setAttribute('role','alert');
-          status.setAttribute('aria-live','polite');
-          container.appendChild(status);
-
-          var form = document.createElement('form');
-          form.id = 'settingsForm';
-          form.onsubmit = function(ev){ ev.preventDefault(); saveStaffSettings(); };
-
-          // Full Name
-          var fieldName = document.createElement('div');
-          fieldName.className = 'field';
-          var lblName = document.createElement('label');
-          lblName.htmlFor = 'staff_name';
-          lblName.innerHTML = 'Full Name<span class="req" aria-hidden="true">*</span>';
-          fieldName.appendChild(lblName);
-          var inpName = document.createElement('input');
-          inpName.type = 'text';
-          inpName.id = 'staff_name';
-          inpName.required = true;
-          inpName.setAttribute('aria-describedby','staff_name-error');
-          fieldName.appendChild(inpName);
-          var errName = document.createElement('div');
-          errName.id = 'staff_name-error';
-          errName.className = 'error-text';
-          errName.setAttribute('role','alert');
-          fieldName.appendChild(errName);
-          form.appendChild(fieldName);
-
-          // Email (read-only)
-          var fieldEmail = document.createElement('div');
-          fieldEmail.className = 'field';
-          var lblEmail = document.createElement('label');
-          lblEmail.htmlFor = 'staff_email';
-          lblEmail.innerHTML = 'Email Address<span class="req" aria-hidden="true">*</span>';
-          fieldEmail.appendChild(lblEmail);
-          var inpEmail = document.createElement('input');
-          inpEmail.type = 'email';
-          inpEmail.id = 'staff_email';
-          inpEmail.required = true;
-          inpEmail.readOnly = true;
-          inpEmail.setAttribute('aria-describedby','staff_email-error');
-          fieldEmail.appendChild(inpEmail);
-          var errEmail = document.createElement('div');
-          errEmail.id = 'staff_email-error';
-          errEmail.className = 'error-text';
-          errEmail.setAttribute('role','alert');
-          fieldEmail.appendChild(errEmail);
-          form.appendChild(fieldEmail);
-
-          // Reporting Building
-          var fieldBldg = document.createElement('div');
-          fieldBldg.className = 'field';
-          var lblBldg = document.createElement('label');
-          lblBldg.htmlFor = 'staff_building';
-          lblBldg.innerHTML = 'Reporting Building<span class="req" aria-hidden="true">*</span>';
-          fieldBldg.appendChild(lblBldg);
-          var selBldg = document.createElement('select');
-          selBldg.id = 'staff_building';
-          selBldg.required = true;
-          selBldg.setAttribute('aria-describedby','staff_building-error');
-          fieldBldg.appendChild(selBldg);
-          var errBldg = document.createElement('div');
-          errBldg.id = 'staff_building-error';
-          errBldg.className = 'error-text';
-          errBldg.setAttribute('role','alert');
-          fieldBldg.appendChild(errBldg);
-          form.appendChild(fieldBldg);
-
-          // Funding Source
-          var fieldFund = document.createElement('div');
-          fieldFund.className = 'field';
-          var lblFund = document.createElement('label');
-          lblFund.htmlFor = 'staff_funding';
-          lblFund.innerHTML = 'Funding Source<span class="req" aria-hidden="true">*</span>';
-          fieldFund.appendChild(lblFund);
-          var selFund = document.createElement('select');
-          selFund.id = 'staff_funding';
-          selFund.required = true;
-          selFund.setAttribute('aria-describedby','staff_funding-error');
-          fieldFund.appendChild(selFund);
-          var errFund = document.createElement('div');
-          errFund.id = 'staff_funding-error';
-          errFund.className = 'error-text';
-          errFund.setAttribute('role','alert');
-          fieldFund.appendChild(errFund);
-          form.appendChild(fieldFund);
-
-          // Save button
-          var saveBtn = document.createElement('button');
-          saveBtn.id = 'saveSettingsBtn';
-          saveBtn.type = 'submit';
-          saveBtn.textContent = 'Save Settings';
-          form.appendChild(saveBtn);
-
-          container.appendChild(form);
-
-          // Attach to DOM (after the entry form)
-          document.body.appendChild(container);
-
-          // Wire refs
-          settingsUi.section = container;
-          settingsUi.status = status;
-          settingsUi.form = form;
-          settingsUi.name = inpName;
-          settingsUi.email = inpEmail;
-          settingsUi.building = selBldg;
-          settingsUi.funding = selFund;
-          settingsUi.saveBtn = saveBtn;
-
-          // Load data
-          google.script.run
-            .withSuccessHandler(initStaffSettings)
-            .withFailureHandler(handleSettingsBootFailure)
-            .SidebarController_loadStaffConfig();
-        } catch (e) {
-          console.error('Settings section init error', e);
-        }
-      })();
-
-      /**
-       * Initialize Settings UI with server-provided data.
-       * @param {{buildings:string[], fundingSources:string[], fields:{required:string[],optional:string[]}, staff:Object}} data
-       */
-      function initStaffSettings(data) {
-        try {
-          // Options
-          clearChildren(settingsUi.building);
-          appendOption(settingsUi.building, '', '-- Select building --');
-          (data.buildings || []).forEach(function (b) {
-            appendOption(settingsUi.building, b, b);
-          });
-
-          clearChildren(settingsUi.funding);
-          appendOption(settingsUi.funding, '', '-- Select funding source --');
-          (data.fundingSources || []).forEach(function (f) {
-            appendOption(settingsUi.funding, f, f);
-          });
-
-          // Values
-          var staff = data.staff || {};
-          settingsUi.name.value = staff.name || '';
-          settingsUi.email.value = staff.email || '';
-          settingsUi.building.value = staff.building_id || '';
-          settingsUi.funding.value = staff.funding_source || '';
-
-          // Basic validation handlers
-          settingsUi.name.addEventListener('input', function(){ validateSettingsField('staff_name'); });
-          settingsUi.building.addEventListener('change', function(){ validateSettingsField('staff_building'); });
-          settingsUi.funding.addEventListener('change', function(){ validateSettingsField('staff_funding'); });
-
-          showSettingsStatus('', null);
-        } catch (e) {
-          console.error('initStaffSettings error', e);
-          showSettingsStatus('Failed to initialize Staff Settings.', 'error');
-        }
-      }
-
-      function handleSettingsBootFailure(err){
-        console.error('Settings boot failure', err);
-        showSettingsStatus('Failed to load Staff Settings.', 'error');
-      }
-
-      function saveStaffSettings() {
-        resetSettingsFieldErrors();
-        if (!validateSettingsForm()) {
-          showSettingsStatus('Please correct the highlighted fields.', 'error');
-          return;
-        }
-        var payload = {
-          name: settingsUi.name.value,
-          email: settingsUi.email.value,
-          building_id: settingsUi.building.value,
-          funding_source: settingsUi.funding.value
-        };
-        setSettingsLoading(true);
-        showSettingsStatus('Saving', null);
-        settingsUi.saveBtn.classList.add('saving');
-
-        google.script.run
-          .withSuccessHandler(function(res){
-            settingsUi.saveBtn.classList.remove('saving');
-            setSettingsLoading(false);
-            showSettingsStatus('Settings saved.', 'success');
-          })
-          .withFailureHandler(function(err){
-            settingsUi.saveBtn.classList.remove('saving');
-            setSettingsLoading(false);
-            var parsed = parseServerError(err);
-            (parsed.messages || []).forEach(function (m) {
-              var msg = m.toLowerCase();
-              if (msg.indexOf('name') !== -1) setFieldError('staff_name', m);
-              else if (msg.indexOf('email') !== -1) setFieldError('staff_email', m);
-              else if (msg.indexOf('building') !== -1) setFieldError('staff_building', m);
-              else if (msg.indexOf('funding') !== -1) setFieldError('staff_funding', m);
-            });
-            showSettingsStatus(parsed.summary || 'Failed to save settings.', 'error');
-          })
-          .SidebarController_saveStaffConfig(payload);
-      }
-
-      function validateSettingsForm(){
-        var ok = true;
-        if (!settingsUi.name.value.trim()){
-          setFieldError('staff_name', 'Full Name is required.');
-          ok = false;
-        }
-        if (!settingsUi.email.value.trim()){
-          setFieldError('staff_email', 'Email is required.');
-          ok = false;
-        }
-        if (!settingsUi.building.value){
-          setFieldError('staff_building', 'Reporting Building is required.');
-          ok = false;
-        }
-        if (!settingsUi.funding.value){
-          setFieldError('staff_funding', 'Funding Source is required.');
-          ok = false;
-        }
-        return ok;
-      }
-
-      function validateSettingsField(fieldId){
-        var prev = document.getElementById(fieldId + '-error');
-        if (prev) prev.textContent = '';
-        var el = document.getElementById(fieldId);
-        if (el) el.classList.remove('invalid');
-
-        if (fieldId === 'staff_name' && !settingsUi.name.value.trim()){
-          setFieldError('staff_name','Full Name is required.'); return false;
-        }
-        if (fieldId === 'staff_email' && !settingsUi.email.value.trim()){
-          setFieldError('staff_email','Email is required.'); return false;
-        }
-        if (fieldId === 'staff_building' && !settingsUi.building.value){
-          setFieldError('staff_building','Reporting Building is required.'); return false;
-        }
-        if (fieldId === 'staff_funding' && !settingsUi.funding.value){
-          setFieldError('staff_funding','Funding Source is required.'); return false;
-        }
-        return true;
-      }
-
-      function resetSettingsFieldErrors(){
-        ['staff_name','staff_email','staff_building','staff_funding'].forEach(function(id){
-          var el = document.getElementById(id);
-          if (el) el.classList.remove('invalid');
-          var err = document.getElementById(id + '-error');
-          if (err) err.textContent = '';
-        });
-      }
-
-      function setSettingsLoading(isLoading){
-        var controls = [settingsUi.name, settingsUi.email, settingsUi.building, settingsUi.funding, settingsUi.saveBtn];
-        controls.forEach(function(c){ if (c) c.disabled = !!isLoading; });
-      }
-
-      function showSettingsStatus(msg, type){
-        if (!settingsUi.status) return;
-        settingsUi.status.textContent = msg || '';
-        settingsUi.status.className = 'status' + (type ? ' ' + type : '');
-        settingsUi.status.style.display = type ? 'block' : 'none';
-      }
-    </script>
-  </body>
-</html>
+      <div class="footer">Tasks post to today’s weekday; entries auto-sort by start time.</div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const timePattern = /^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/i;
+
+    function setBusy(b){ $('submit').disabled = !!b; }
+    function showError(msg){ const el=$('error'); el.textContent=msg||''; el.hidden=!msg; $('success').hidden=true; }
+    function showSuccess(msg){ const el=$('success'); el.textContent=msg||''; el.hidden=!msg; $('error').hidden=true; }
+
+    // Populate dropdown from server-injected template data
+    (function init(){
+      var options = <?!= JSON.stringify(taskOptions) ?>;
+      const sel = $('taskOption');
+      sel.innerHTML = '';
+      options.forEach(o=>{
+        const opt = document.createElement('option');
+        opt.value = o; opt.textContent = o; sel.appendChild(opt);
+      });
+    }());
+
+    $('submit').addEventListener('click', function(){
+      showError(''); showSuccess('');
+      const start = $('start').value.trim();
+      const end = $('end').value.trim();
+      const taskText = $('taskText').value.trim();
+      const taskOption = $('taskOption').value;
+
+      if (!timePattern.test(start)) return showError('Start time must be HH:MM AM/PM');
+      if (!timePattern.test(end)) return showError('End time must be HH:MM AM/PM');
+      if (!taskText && !taskOption) return showError('Please choose or enter a task');
+
+      setBusy(true);
+      google.script.run.withSuccessHandler(function(res){
+        setBusy(false);
+        if (!res || !res.ok) return showError(res && res.message || 'Failed to add task.');
+        showSuccess(res.message + ' (Row ' + (res.placedRow||'?') + ')');
+        // Keep inputs for quick next entry; optionally clear taskText
+        $('taskText').value='';
+      }).withFailureHandler(function(err){
+        setBusy(false); showError(err && err.message || String(err));
+      }).addTask({ startTime:start, endTime:end, taskOption:taskOption, taskText:taskText });
+    });
+  </script>
+</body>
 </html>

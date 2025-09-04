@@ -1,74 +1,28 @@
-# Worklog Apps Script — Directory Overview
+miWorklog – Script Directory Overview
 
-This document orients developers to the codebase without opening every file.
+Last updated: 2025-09-04 12:58 (single-column-per-day layout)
 
-## Project Map
+Files
+- scripts/Code.gs: Core Apps Script entry points. Adds custom menu, renders sidebar, validates inputs, locates the weekday block in the sheet, writes the entry, and sorts by start time. Contains helper utilities and JSDoc for each function.
+- scripts/Sidebar.html: Sidebar UI (HTML/CSS/JS). Provides Start/End time inputs (HH:MM AM/PM), a dropdown of task options, and a free‑text field. Calls `addTask` via `google.script.run`.
 
-```
-apps_script_project/
-├── appsscript.json              # Manifest (timezone, V8 runtime)
-├── bootstrap.gs                 # Initializes required sheets and headers via CONFIG.SHEETS
-├── Code.gs                      # onOpen menu, sidebar launcher, CONFIG constants (includes Audit)
-├── controllers.sidebar.gs       # UI bridge (HTML ↔ Services)
-├── services.audit.gs            # append-only audit logger
-├── services.caseload.gs         # caseload + student lookup
-├── services.pars.gs             # PARS classification + week close
-├── services.report.gs           # report rebuild pipeline
-├── services.settings.gs         # settings retrieval with caching
-├── services.validation.gs       # entry validation and policy checks
-├── services.worklog.gs          # write entries, close week delegation, audit emission
-└── Sidebar.html                 # HTML Service UI for entry with validation & error handling
-```
+Key flows
+- onOpen → adds “Worklog” menu and auto-opens the sidebar on load.
+- showSidebar → injects task options and displays the sidebar.
+- addTask → parses and validates times, picks today’s weekday (falls back to Monday on weekends), finds the sheet block headed by the weekday label, inserts the row, then sorts the block ascending by “Start Time”. Sorting width is restricted to the day’s columns only.
 
-> **Note:** All business logic is implemented within `services/*.gs`; controllers and UI handle orchestration and presentation.
+Assumptions and discovery
+- Day blocks are labeled with uppercase weekday names (e.g., MONDAY). Each day’s block uses the same columns across the sheet.
+- Within a few rows below the label, a header row contains: “Start Time”, “End Time”, and “What did you work on?”.
+- The bottom of each block contains a row with the phrase “Total Daily Hrs”. The script bounds the block using that row.
+- Task options are loaded from, in order: Named range `TaskOptions`, sheet `task_options` (column A), or a small fallback list.
 
-## File-by-File
+How to install in Apps Script
+- In the target Google Sheet, open Extensions → Apps Script.
+- Create files `Code.gs` and `Sidebar.html` and paste the contents from this repository’s `scripts/` directory.
+- Reload the spreadsheet → the Worklog sidebar opens automatically; use the Worklog menu to reopen later if needed.
 
-- **appsscript.json** — Manifest; sets timezone and V8 runtime.
-- **bootstrap.gs** — Initializes required sheets (Settings, Staff, Students, Caseload, Worklog, Audit, PARS Overrides, Reports) including the **Staff** sheet schema with a `funding_source` column, and headers using `CONFIG.SHEETS`.
-- **Code.gs**
-  - `onOpen()` adds **Worklog** menu: *Open Sidebar*, *Close Week*, *Rebuild Reports*.
-  - `showSidebar()` mounts `Sidebar.html`.
-  - `CONFIG` centralizes sheet names (including **Audit**) and versioning.
-- **controllers.sidebar.gs**
-  - `SidebarController_boot()` fetches students and activities, shows loading states, and inline error messages.
-  - `SidebarController_save(payload)` invokes `ValidationService.validateEntry()` and `WorklogService.saveEntry()`, and returns success or error to UI.
-  - `SidebarController_loadStaffConfig()` and `SidebarController_saveStaffConfig(payload)` provide server endpoints for loading and saving staff configuration data.
-- **services.worklog.gs**
-  - `saveEntry(entry, userEmail)` acquires a document lock, writes to the **Worklog** sheet, and emits audit logs via `AuditService`.
-  - `closeWeekPrompt()` prompts for a week-ending date and delegates to `PARSService.closeWeek()`.
-- **services.validation.gs**
-  - `validateEntry(entry, userEmail)` enforces required fields, a valid date, minutes > 0; checks role/activity allowability, prevents entry overlap, and enforces permission constraints.
-- **services.caseload.gs**
-  - `listStudents(staffId, date)` returns only active students for the given staff and date, using effective-dated filtering.
-- **services.pars.gs**
-  - `classify(entry)` computes in-grant vs out-of-grant minutes per PARS rules.
-  - `closeWeek(weekEnding)` aggregates entries for the period, writes a protected **Reports – Week {end}** sheet, and records adjustments immutably.
-- **services.report.gs**
-  - `rebuildAll()` recomputes all reports from **Worklog** and **PARS Overrides**, using batch operations and optional CSV/PDF export.
-- **services.audit.gs**
-  - `log(action, payload, userEmail)` appends `[timestamp, user, action, payload JSON, checksum]` rows to the **Audit** sheet.
-- **services.settings.gs**
-  - `listActivities()` reads activity codes and labels from the **Settings** sheet with TTL-based caching.
-  - Typed getters (`getRoles()`, `getBuildings()`) fetch and cache roles and buildings from **Settings**.
-  - `getFundingSources()` fetches and caches funding sources from **Settings**.
-  - `getStaffConfigFields()` fetches and caches staff configuration field metadata.
-- **Sidebar.html**
-  - Enhanced UI with client-side validation, loading states, and inline error messages; includes a dynamic **Staff Settings** section below the entry form, and uses `google.script.run` to call controller methods and populate dropdowns.
-
-## Expected Sheets
-
-- **Settings** (reference lists, activity codes, flags)
-- **Staff** (columns: `staff_id`, `name`, `email`, `building_id`, `role`, `active`, `funding_source`), **Students**, **Caseload** (IDs, names, effective dates)
-- **Worklog** (tall table of entries)
-- **Audit** (append-only audit log)
-- **PARS Overrides** (manual adjustments)
-- **Reports – {period}** (generated + protected)
-
-## How to Run
-
-1. Open the spreadsheet → **Extensions ▸ Apps Script**.
-2. Import the project files into the Apps Script project (including `bootstrap.gs`).
-3. In the Apps Script editor, run the `bootstrap()` function to initialize required sheets and headers.
-4. Save and reload the spreadsheet → **Worklog** menu appears.
-5. **Worklog ▸ Open Sidebar** to enter a test row.
+Notes
+- Sorting uses the “Start Time” column detected on the header row. Blank rows remain at the bottom after sort.
+- Times are stored as time-only serial fractions (no timezone dependency). Use your preferred time number format in the sheet.
+- The script is conservative and throws clear validation errors for bad inputs.
