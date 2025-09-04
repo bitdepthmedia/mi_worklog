@@ -9,16 +9,16 @@
     .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
     h2 { margin: 0 0 8px; font-size: 16px; }
     .field { margin: 8px 0 12px; }
-    label { display:block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
     input[type="text"], select, textarea { width:100%; box-sizing: border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
     .row { display:flex; gap:8px; }
     .row .field { flex:1; }
     .hint { font-size:11px; color:var(--muted); margin-top:4px; }
     button { background:var(--pri); color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
     button:disabled { opacity:.6; cursor:not-allowed; }
-    .footer { margin-top:12px; font-size:11px; color:var(--muted); }
-    .error { color:#b00020; font-size:12px; margin:6px 0 0; }
-    .success { color:#1b5e20; font-size:12px; margin:6px 0 0; }
+    .footer { margin-top:15px; font-size:11px; color:var(--muted); }
+    .error { color:#b00020; font-size:18px; margin:6px 0 0; }
+    .success { color:#1b5e20; font-size:18px; margin:6px 0 0; }
     .stack { display:flex; flex-direction:column; gap:8px; }
   </style>
 </head>
@@ -26,14 +26,19 @@
   <div class="wrap">
     <h2>Add Worklog Task</h2>
     <div class="stack">
+      <div class="field">
+        <label for="dateOverride">Day/Date (optional)</label>
+        <input id="dateOverride" type="date" />
+        <div class="hint">Leave blank to use Today automatically.</div>
+      </div>
       <div class="row">
         <div class="field">
-          <label for="start">Start Time (HH:MM AM/PM)</label>
-          <input id="start" type="text" placeholder="7:50 AM" autocomplete="off" />
+          <label for="start">Start Time</label>
+          <input id="start" type="time" autocomplete="off" />
         </div>
         <div class="field">
-          <label for="end">End Time (HH:MM AM/PM)</label>
-          <input id="end" type="text" placeholder="9:10 AM" autocomplete="off" />
+          <label for="end">End Time</label>
+          <input id="end" type="time" autocomplete="off" />
         </div>
       </div>
 
@@ -49,27 +54,33 @@
         <div class="error" id="error" hidden></div>
         <div class="success" id="success" hidden></div>
       </div>
-      <div class="footer">Tasks post to today’s weekday; entries auto-sort by start time.</div>
+      <div class="footer">Tasks post to today’s weekday unless a date is chosen; entries auto-sort by start time.</div>
     </div>
   </div>
 
   <script>
     const $ = (id) => document.getElementById(id);
-    const timePattern = /^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/i;
+    const timePattern24 = /^([01]?\d|2[0-3]):([0-5]\d)$/;
 
     function setBusy(b){ $('submit').disabled = !!b; }
     function showError(msg){ const el=$('error'); el.textContent=msg||''; el.hidden=!msg; $('success').hidden=true; }
     function showSuccess(msg){ const el=$('success'); el.textContent=msg||''; el.hidden=!msg; $('error').hidden=true; }
 
-    // Populate dropdown from server-injected template data
+    // Populate dropdown by fetching from server (avoids onOpen auth limits)
     (function init(){
-      var options = <?!= JSON.stringify(taskOptions) ?>;
       const sel = $('taskOption');
       sel.innerHTML = '';
-      options.forEach(o=>{
-        const opt = document.createElement('option');
-        opt.value = o; opt.textContent = o; sel.appendChild(opt);
-      });
+      const setOptions = (options) => {
+        sel.innerHTML = '';
+        (options || []).forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o; opt.textContent = o; sel.appendChild(opt);
+        });
+      };
+      // Try load options; if fails, show minimal defaults
+      google.script.run.withSuccessHandler(setOptions)
+        .withFailureHandler(function(){ setOptions(['Lesson planning','Student support','Assessment','Data entry','Meeting']); })
+        .getTaskOptions();
     }());
 
     $('submit').addEventListener('click', function(){
@@ -78,9 +89,10 @@
       const end = $('end').value.trim();
       const taskText = $('taskText').value.trim();
       const taskOption = $('taskOption').value;
+      const dateOverride = $('dateOverride').value.trim(); // YYYY-MM-DD or ''
 
-      if (!timePattern.test(start)) return showError('Start time must be HH:MM AM/PM');
-      if (!timePattern.test(end)) return showError('End time must be HH:MM AM/PM');
+      if (!timePattern24.test(start)) return showError('Start time is required (HH:MM)');
+      if (!timePattern24.test(end)) return showError('End time is required (HH:MM)');
       if (!taskText && !taskOption) return showError('Please choose or enter a task');
 
       setBusy(true);
@@ -92,7 +104,7 @@
         $('taskText').value='';
       }).withFailureHandler(function(err){
         setBusy(false); showError(err && err.message || String(err));
-      }).addTask({ startTime:start, endTime:end, taskOption:taskOption, taskText:taskText });
+      }).addTask({ startTime:start, endTime:end, taskOption:taskOption, taskText:taskText, dateOverride: dateOverride || null });
     });
   </script>
 </body>

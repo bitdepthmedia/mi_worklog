@@ -4,10 +4,11 @@
  * Follows project rules in AGENTS.md (modular, SoC, JSDoc, validation).
  */
 
-/** @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string }} TaskEntry */
+/** @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string, dateOverride?: (string|null) }} TaskEntry */
 
 /**
- * Adds the Worklog menu and auto-opens the sidebar.
+ * Adds the Worklog menu and shows a toast on open.
+ * Simple triggers cannot open sidebars; provide menu + toast guidance.
  * @param {GoogleAppsScript.Events.SheetsOnOpen} e - Open event payload
  * @returns {void}
  */
@@ -16,8 +17,7 @@ function onOpen(e) {
     .createMenu('Worklog')
     .addItem('Open Sidebar', 'showSidebar')
     .addToUi();
-  // Auto-display the sidebar on load for convenience
-  showSidebar();
+  SpreadsheetApp.getActive().toast('Use Worklog → Open Sidebar to add a task.', 'miWorklog', 6);
 }
 
 /**
@@ -25,15 +25,15 @@ function onOpen(e) {
  * @returns {void}
  */
 function showSidebar() {
-  var html = HtmlService.createTemplateFromFile('Sidebar');
-  html.taskOptions = getTaskOptions();
-  var output = html.evaluate().setTitle('Add Worklog Task');
+  var output = HtmlService.createHtmlOutputFromFile('Sidebar')
+    .setTitle('Add Worklog Task');
   SpreadsheetApp.getUi().showSidebar(output);
 }
 
 /**
  * Returns task options for the dropdown.
- * Attempts (in order): NamedRange "TaskOptions", Sheet "task_options" Col A, fallback.
+ * Attempts (in order): NamedRange "TaskOptions", Sheet "settings" A3:A (defaults),
+ * then legacy sheets: "task_options"/"Reference"/"Ref" Col A, else fallback list.
  * @returns {string[]}
  */
 function getTaskOptions() {
@@ -45,9 +45,20 @@ function getTaskOptions() {
       return (nr.getValues() || []).map(function(r){return r[0];}).filter(Boolean);
     }
   } catch (e) {
-    // ignore
+    // ignore named range lookup errors
   }
-  // 2) Reference sheet
+  // 2) settings!A3:A (default options live here)
+  var settings = ss.getSheetByName('settings');
+  if (settings) {
+    var lastRow = settings.getLastRow();
+    if (lastRow >= 3) {
+      var vals2 = settings.getRange(3, 1, lastRow - 2, 1).getValues()
+        .map(function(r){ return r[0]; })
+        .filter(function(v){ return !!v; });
+      if (vals2.length) return vals2;
+    }
+  }
+  // 3) Legacy reference sheets (for backward compatibility)
   var ref = ss.getSheetByName('task_options') || ss.getSheetByName('Reference') || ss.getSheetByName('Ref');
   if (ref) {
     var last = ref.getLastRow();
@@ -56,27 +67,40 @@ function getTaskOptions() {
       if (vals.length) return vals;
     }
   }
-  // 3) Fallback starter set
+  // 4) Fallback starter set
   return ['Lesson planning','Student support','Assessment','Data entry','Meeting'];
 }
 
 /**
- * Parses HH:MM AM/PM to a time-only serial fraction (no timezone issues).
- * @param {string} timeStr - e.g., "7:50 AM" or "12:05 pm".
+ * Parses a user time string to a time-only serial fraction (no timezone issues).
+ * Accepts either 24-hour "HH:MM" (from <input type="time">) or "HH:MM AM/PM".
+ * @param {string} timeStr - e.g., "07:50", "19:10", or "7:50 AM".
  * @returns {{minutes:number,fraction:number}}
  */
 function parseUserTimeToSerial_(timeStr) {
   if (!timeStr || typeof timeStr !== 'string') throw new Error('Time is required.');
-  var s = timeStr.trim().toUpperCase();
+  var raw = timeStr.trim();
+  // Try 24-hour first: HH:MM
+  var m24 = raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (m24) {
+    var h24 = parseInt(m24[1], 10);
+    var min24 = parseInt(m24[2], 10);
+    var total24 = h24 * 60 + min24;
+    return { minutes: total24, fraction: total24 / (24 * 60) };
+  }
+  // Fallback to AM/PM format
+  var s = raw.toUpperCase();
   var m = s.match(/^(0?[1-9]|1[0-2]):([0-5][0-9])\s?(AM|PM)$/);
-  if (!m) throw new Error('Time must be in HH:MM AM/PM');
-  var h = parseInt(m[1],10);
-  var min = parseInt(m[2],10);
-  var mer = m[3];
-  if (mer === 'PM' && h !== 12) h += 12;
-  if (mer === 'AM' && h === 12) h = 0;
-  var totalMin = h * 60 + min;
-  return { minutes: totalMin, fraction: totalMin / (24 * 60) };
+  if (m) {
+    var h = parseInt(m[1],10);
+    var min = parseInt(m[2],10);
+    var mer = m[3];
+    if (mer === 'PM' && h !== 12) h += 12;
+    if (mer === 'AM' && h === 12) h = 0;
+    var totalMin = h * 60 + min;
+    return { minutes: totalMin, fraction: totalMin / (24 * 60) };
+  }
+  throw new Error('Time must be HH:MM (24h) or HH:MM AM/PM');
 }
 
 /**
@@ -89,6 +113,24 @@ function getTodayWeekday_() {
   var nowTz = new Date(Utilities.formatDate(new Date(), tz, 'yyyy/MM/dd HH:mm:ss'));
   var names = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
   return names[nowTz.getDay()];
+}
+
+/**
+ * Parses an ISO date string (YYYY-MM-DD) to an uppercase weekday name.
+ * If invalid, throws. If weekend, returns 'SATURDAY' or 'SUNDAY'.
+ * The weekday for a given calendar date is timezone-agnostic.
+ * @param {string} dateStr - ISO date string from `<input type="date">`.
+ * @returns {string} Uppercase weekday name
+ */
+function parseDateOverrideToWeekday_(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') throw new Error('Invalid date override.');
+  var m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) throw new Error('Date must be YYYY-MM-DD.');
+  var y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) throw new Error('Invalid calendar date.');
+  var dt = new Date(y, mo - 1, d); // Calendar date; weekday independent of TZ
+  var names = ['SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'];
+  return names[dt.getDay()];
 }
 
 /**
@@ -168,10 +210,14 @@ function addTask(entry) {
   if (!taskText) throw new Error('Please provide a task description.');
 
   var sheet = SpreadsheetApp.getActiveSheet();
-  var day = getTodayWeekday_();
-  if (['SATURDAY','SUNDAY'].indexOf(day) !== -1) {
-    // default to MONDAY if weekend
-    day = 'MONDAY';
+  var day;
+  if (entry.dateOverride && String(entry.dateOverride).trim()) {
+    // Use user override; if weekend, map to MONDAY to fit grid
+    var chosen = parseDateOverrideToWeekday_(String(entry.dateOverride).trim());
+    day = (chosen === 'SATURDAY' || chosen === 'SUNDAY') ? 'MONDAY' : chosen;
+  } else {
+    day = getTodayWeekday_();
+    if (day === 'SATURDAY' || day === 'SUNDAY') day = 'MONDAY';
   }
 
   var block = findDayBlock_(sheet, day);
