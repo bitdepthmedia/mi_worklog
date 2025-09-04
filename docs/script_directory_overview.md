@@ -1,15 +1,15 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-04 13:57 (settings!A3:A task options)
+Last updated: 2025-09-04 15:56 (fixed columns + Grant Source)
 
 Files
-- scripts/Code.gs: Core Apps Script entry points. Adds custom menu, renders sidebar, validates inputs, locates the weekday block in the sheet, writes the entry, and sorts by start time. Contains helper utilities and JSDoc for each function.
+- scripts/Code.gs: Core Apps Script entry points. Adds custom menu, renders sidebar, validates inputs, locates the weekday block in the sheet, writes the entry, and sorts by start time. Contains helper utilities and JSDoc for each function. Now uses fixed column references for insertion.
 - scripts/Sidebar.html: Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker (blank defaults to Today), a dropdown of task options, and a free‑text field. Calls `addTask` via `google.script.run`.
 
 Key flows
 - onOpen → adds “Worklog” menu, shows a toast; does not auto-open UI (simple trigger limitation).
 - showSidebar → displays the sidebar (no data reads at open).
-- Sidebar.html → lazily loads task options via `google.script.run.getTaskOptions()` after render.
+- Sidebar.html → lazily loads task options via `google.script.run.getTaskOptions()` after render. Also loads Grant Sources via `getGrantSources()` and shows a dropdown only when more than one source is configured.
 
 Notes on buttons
 - Google Sheets cannot run Apps Script from a cell click or hyperlink, and triggers can’t open UI. The supported approach is an image/drawing with “Assign script…” to `showSidebar`.
@@ -20,6 +20,14 @@ Assumptions and discovery
 - Within a few rows below the label, a header row contains: “Start Time”, “End Time”, and “What did you work on?”.
 - The bottom of each block contains a row with the phrase “Total Daily Hrs”. The script bounds the block using that row.
 - Task options are loaded from, in order: Named range `TaskOptions`, sheet `settings` (A3:A), legacy `task_options`/`Reference`/`Ref` (column A), or a small fallback list.
+- Grant sources are loaded from `settings!B3:B`.
+
+Fixed columns (sheet-wide)
+- Start Time: column B (2)
+- End Time: column C (3)
+- Grant Source: column E (5)
+- Students: column F (6) [reserved]
+- What did you work on?: column G (7)
 
 How to install in Apps Script
 - In the target Google Sheet, open Extensions → Apps Script.
@@ -27,7 +35,12 @@ How to install in Apps Script
 - Reload the spreadsheet → the Worklog sidebar opens automatically; use the Worklog menu to reopen later if needed.
 
 Notes
-- Sorting uses the “Start Time” column detected on the header row. Blank rows remain at the bottom after sort.
+- Sorting uses the Start Time column (fixed to column B). Blank rows remain at the bottom after sort.
 - Times are stored as time-only serial fractions (no timezone dependency). Use your preferred time number format in the sheet.
 - The script is conservative and throws clear validation errors for bad inputs.
  - Day/Date override is optional. Leaving it blank posts the entry to Today’s weekday.
+
+Grant Source behavior
+- `settings!B3:B` defines available grant sources.
+- If more than one grant source is defined, the sidebar shows a dropdown and the selected value is written to column E during insertion.
+- If zero or one grant source is defined, the dropdown is hidden and no value is written.

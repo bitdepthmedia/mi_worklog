@@ -4,7 +4,7 @@
  * Follows project rules in AGENTS.md (modular, SoC, JSDoc, validation).
  */
 
-/** @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string, dateOverride?: (string|null) }} TaskEntry */
+/** @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string, dateOverride?: (string|null), grantSource?: (string|null) }} TaskEntry */
 
 /**
  * Adds the Worklog menu and shows a toast on open.
@@ -69,6 +69,23 @@ function getTaskOptions() {
   }
   // 4) Fallback starter set
   return ['Lesson planning','Student support','Assessment','Data entry','Meeting'];
+}
+
+/**
+ * Returns available Grant Sources from settings!B3:B.
+ * If the settings sheet or range is missing, returns an empty array.
+ * @returns {string[]}
+ */
+function getGrantSources() {
+  var ss = SpreadsheetApp.getActive();
+  var settings = ss.getSheetByName('settings');
+  if (!settings) return [];
+  var lastRow = settings.getLastRow();
+  if (lastRow < 3) return [];
+  var vals = settings.getRange(3, 2, lastRow - 2, 1).getValues() // Col B starting at row 3
+    .map(function(r){ return String(r[0] || '').trim(); })
+    .filter(function(v){ return !!v; });
+  return vals;
 }
 
 /**
@@ -160,7 +177,6 @@ function findDayBlock_(sheet, dayName) {
 
   // 2) Find the header row below the label (single block layout; scan whole row in-memory)
   var headerRow = -1;
-  var startColAbs = -1, endColAbs = -1, workColAbs = -1;
   var searchDepth = 6;
   for (var rr = dayRow; rr <= Math.min(dayRow + searchDepth, data.length); rr++) {
     var rowU = data[rr-1].map(function(v){ return String(v).toUpperCase(); });
@@ -170,9 +186,6 @@ function findDayBlock_(sheet, dayName) {
     if (idxWork === -1) idxWork = rowU.indexOf('WHAT DID YOU WORK ON');
     if (idxStart !== -1 && idxEnd !== -1 && idxWork !== -1) {
       headerRow = rr;
-      startColAbs = idxStart + 1;
-      endColAbs = idxEnd + 1;
-      workColAbs = idxWork + 1;
       break;
     }
   }
@@ -186,11 +199,18 @@ function findDayBlock_(sheet, dayName) {
     endRow = rr2;
   }
 
+  // Use fixed columns per spec: B=2 (Start), C=3 (End), E=5 (Grant), F=6 (Students), G=7 (Work)
   return {
     startRow: headerRow + 1,
     endRow: endRow,
-    startCol: startColAbs,
-    cols: { startTime: startColAbs, endTime: endColAbs, whatDidYouWorkOn: workColAbs }
+    startCol: 2,
+    cols: {
+      startTime: 2,
+      endTime: 3,
+      grantSource: 5,
+      students: 6,
+      whatDidYouWorkOn: 7
+    }
   };
 }
 
@@ -240,6 +260,20 @@ function addTask(entry) {
   sheet.getRange(targetRow, block.cols.startTime).setValue(start.fraction);
   sheet.getRange(targetRow, block.cols.endTime).setValue(end.fraction);
   sheet.getRange(targetRow, block.cols.whatDidYouWorkOn).setValue(taskText);
+
+  // Grant Source: only write when more than one source exists
+  try {
+    var grantSources = getGrantSources();
+    if (grantSources && grantSources.length > 1) {
+      var gsVal = (entry.grantSource || '').trim();
+      // If client didn't provide, default to first available (defensive)
+      if (!gsVal && grantSources.length) gsVal = grantSources[0];
+      sheet.getRange(targetRow, block.cols.grantSource).setValue(gsVal);
+    }
+  } catch (e) {
+    // Do not fail task insertion due to grant source write; log instead
+    console && console.warn && console.warn('Grant source write skipped:', e);
+  }
 
   // Sort the block by Start Time ascending (blanks last). Use exact day width.
   var sortWidth = Math.max(block.cols.startTime, block.cols.endTime, block.cols.whatDidYouWorkOn) - block.cols.startTime + 1;

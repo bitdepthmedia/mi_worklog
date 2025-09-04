@@ -49,6 +49,12 @@
         <input id="taskText" type="text" placeholder="e.g., Small group reading intervention" />
       </div>
 
+      <div class="field" id="grantField" hidden>
+        <label for="grantSelect">Grant Source</label>
+        <select id="grantSelect"></select>
+        <div class="hint">Shown only when multiple grant sources exist.</div>
+      </div>
+
       <div>
         <button id="submit">Add Task</button>
         <div class="error" id="error" hidden></div>
@@ -81,6 +87,25 @@
       google.script.run.withSuccessHandler(setOptions)
         .withFailureHandler(function(){ setOptions(['Lesson planning','Student support','Assessment','Data entry','Meeting']); })
         .getTaskOptions();
+
+      // Load grant sources; show dropdown only when multiple exist
+      const setGrantSources = (sources) => {
+        const container = $('grantField');
+        const gs = $('grantSelect');
+        gs.innerHTML = '';
+        if (Array.isArray(sources) && sources.length > 1) {
+          sources.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s; opt.textContent = s; gs.appendChild(opt);
+          });
+          container.hidden = false;
+        } else {
+          container.hidden = true;
+        }
+      };
+      google.script.run.withSuccessHandler(setGrantSources)
+        .withFailureHandler(function(){ setGrantSources([]); })
+        .getGrantSources();
     }());
 
     $('submit').addEventListener('click', function(){
@@ -104,7 +129,14 @@
         $('taskText').value='';
       }).withFailureHandler(function(err){
         setBusy(false); showError(err && err.message || String(err));
-      }).addTask({ startTime:start, endTime:end, taskOption:taskOption, taskText:taskText, dateOverride: dateOverride || null });
+      }).addTask({
+        startTime: start,
+        endTime: end,
+        taskOption: taskOption,
+        taskText: taskText,
+        dateOverride: dateOverride || null,
+        grantSource: $('grantField').hidden ? null : ($('grantSelect').value || null)
+      });
     });
   </script>
 </body>
