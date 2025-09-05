@@ -9,11 +9,12 @@
     .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
     h2 { margin: 0 0 8px; font-size: 16px; }
     .field { margin: 8px 0 12px; }
-    label { display:block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+    label { display:block; font-size: 13px; color: #3000bf; margin-bottom: 6px; }
     input[type="text"], select, textarea { width:100%; box-sizing: border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
     .row { display:flex; gap:8px; }
     .row .field { flex:1; }
     .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    .hintBold {font-size:12px;; color:#c77100}
     button { background:var(--pri); color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
     button:disabled { opacity:.6; cursor:not-allowed; }
     .footer { margin-top:15px; font-size:11px; color:var(--muted); }
@@ -45,7 +46,7 @@
       <div class="field">
         <label>What did you work on?</label>
         <select id="taskOption"></select>
-        <div class="hint">Or type your own below</div>
+        <div class="hintBold">Or type your own below</div>
         <input id="taskText" type="text" placeholder="e.g., Small group reading intervention" />
       </div>
 
@@ -60,7 +61,7 @@
         <div class="error" id="error" hidden></div>
         <div class="success" id="success" hidden></div>
       </div>
-      <div class="footer">Tasks post to today’s weekday unless a date is chosen; entries auto-sort by start time.</div>
+      <div class="footer hintBold">Tasks post to today’s weekday unless a date is chosen; entries auto-sort by start time.</div>
     </div>
   </div>
 
