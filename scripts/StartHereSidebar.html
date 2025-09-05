@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <base target="_top">
+  <style>
+    :root { --bg:#eef7ff; --fg:#111; --muted:#666; --pri:#1a73e8; --border:#e5e7eb; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+    .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .field { margin: 8px 0 12px; }
+    label { display:block; font-size: 13px; color: #3000bf; margin-bottom: 6px; }
+    input[type="text"], input[type="email"], select { width:100%; box-sizing: border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+    .row { display:flex; gap:8px; }
+    .row .field { flex:1; }
+    .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    button { background:var(--pri); color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .error { color:#b00020; font-size:14px; margin:6px 0 0; }
+    .success { color:#1b5e20; font-size:14px; margin:6px 0 0; }
+    .stack { display:flex; flex-direction:column; gap:8px; }
+    .chips { display:flex; flex-direction:column; gap:6px; }
+    .chip { display:flex; align-items:center; gap:8px; }
+    .chip label { margin:0; color:var(--fg); font-weight:600; }
+    .inline { display:flex; align-items:center; gap:8px; }
+    .small { font-size:12px; }
+  </style>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const ADD_NEW = 'Add New Funding…';
+
+    function setBusy(b){ $('submit').disabled = !!b; $('addFundingBtn').disabled = !!b; }
+    function showError(msg){ const el=$('error'); el.textContent=msg||''; el.hidden=!msg; $('success').hidden=true; }
+    function showSuccess(msg){ const el=$('success'); el.textContent=msg||''; el.hidden=!msg; $('error').hidden=true; }
+
+    function uniq(arr){ const seen={}; const out=[]; (arr||[]).forEach(v=>{ const k=String(v).trim(); if(k && !seen[k]){ seen[k]=1; out.push(k);} }); return out; }
+
+    let fundingOptions = [];
+    let shareEmails = [];
+
+    function renderFundingPercents(selectedNames, savedMap){
+      const cont = $('fundingPercents');
+      cont.innerHTML = '';
+      (selectedNames || []).forEach(name => {
+        if (name === ADD_NEW) return; // skip sentinel
+        const row = document.createElement('div');
+        row.className = 'chip';
+        const lbl = document.createElement('label');
+        lbl.textContent = name;
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.min = '0';
+        inp.step = '1';
+        inp.style.width = '90px';
+        inp.value = savedMap && (name in savedMap) ? savedMap[name] : '';
+        inp.placeholder = '%';
+        inp.dataset.funding = name;
+        const pct = document.createElement('span'); pct.textContent = '%';
+        row.appendChild(lbl); row.appendChild(inp); row.appendChild(pct);
+        cont.appendChild(row);
+      });
+    }
+
+    function getSelected(selectEl){
+      return Array.from(selectEl.selectedOptions).map(o=>o.value);
+    }
+
+    function onFundingChange(){
+      const sel = $('funding');
+      const selected = getSelected(sel);
+      // If sentinel present, reveal input row; do not keep sentinel selected for data
+      const hasAdd = selected.includes(ADD_NEW);
+      $('addFundingRow').hidden = !hasAdd;
+      if (hasAdd) {
+        // Deselect the sentinel to avoid confusion
+        Array.from(sel.options).forEach(o=>{ if(o.value===ADD_NEW) o.selected=false; });
+      }
+      const names = getSelected(sel);
+      renderFundingPercents(names);
+    }
+
+    function refreshFundingOptions(options, keepSelected){
+      fundingOptions = (options||[]).slice();
+      const sel = $('funding');
+      const prev = new Set(keepSelected || getSelected(sel));
+      sel.innerHTML = '';
+      fundingOptions.concat([ADD_NEW]).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = v;
+        opt.selected = prev.has(v);
+        sel.appendChild(opt);
+      });
+      // Re-render percents with preserved selections
+      renderFundingPercents(Array.from(prev));
+    }
+
+    function collectFundingPayload(){
+      // Map inputs back into [{name,percent}]
+      const rows = Array.from($('fundingPercents').querySelectorAll('input[type="number"]'));
+      return rows.map(inp => ({ name: inp.dataset.funding, percent: inp.value.trim() ? Number(inp.value) : NaN }));
+    }
+
+    function sumPercents(items){
+      let s = 0; for (const it of items){ if (!isFinite(it.percent)) return NaN; s += it.percent; } return s;
+    }
+
+    window.addEventListener('DOMContentLoaded', function init(){
+      // Attach listener now that the DOM exists
+      const fundingEl = $('funding');
+      if (fundingEl) fundingEl.addEventListener('change', onFundingChange);
+
+      // Load options and any saved values
+      google.script.run.withSuccessHandler(function(res){
+        const bSel = $('buildings');
+        bSel.innerHTML = '';
+        (res.buildings||[]).forEach(b => { const opt=document.createElement('option'); opt.value=b; opt.textContent=b; bSel.appendChild(opt); });
+
+        refreshFundingOptions(res.funding||[], []);
+        shareEmails = res.shareEmails || [];
+
+        // Populate saved values if present
+        if (res.saved) {
+          $('fullName').value = res.saved.name || '';
+          $('districtEmail').value = res.saved.email || '';
+          const savedBuildings = new Set(res.saved.buildings||[]);
+          Array.from(bSel.options).forEach(o => { o.selected = savedBuildings.has(o.value); });
+          const savedMap = {}; (res.saved.funding||[]).forEach(p => { savedMap[p.name]=p.percent; });
+          // Select saved funding values if they exist in options
+          const selected = [];
+          (res.saved.funding||[]).forEach(p => { if ((res.funding||[]).includes(p.name)) selected.push(p.name); });
+          refreshFundingOptions(res.funding||[], selected);
+          renderFundingPercents(selected, savedMap);
+        }
+      }).withFailureHandler(function(err){
+        showError(err && err.message || String(err));
+      }).getStartHereInit();
+    });
+
+    function addFunding(){
+      const val = $('newFunding').value.trim();
+      if (!val) { showError('Enter a funding source to add.'); return; }
+      setBusy(true); showError('');
+      google.script.run.withSuccessHandler(function(res){
+        setBusy(false);
+        if (!res || !res.ok) { showError('Could not add funding source.'); return; }
+        // Reload options; keep previous selections and select the newly added one
+        google.script.run.withSuccessHandler(function(init){
+          const keep = getSelected($('funding')).concat([res.value]);
+          refreshFundingOptions(init.funding||[], keep);
+          $('newFunding').value = '';
+          $('addFundingRow').hidden = true;
+        }).withFailureHandler(function(){ /* ignore */ }).getStartHereInit();
+      }).withFailureHandler(function(err){ setBusy(false); showError(err && err.message || String(err)); }).addFundingSource(val);
+    }
+
+    function submitDetails(){
+      showError(''); showSuccess('');
+      const name = $('fullName').value.trim();
+      const email = $('districtEmail').value.trim();
+      const buildings = Array.from($('buildings').selectedOptions).map(o=>o.value);
+      const funding = collectFundingPayload().filter(x => x.name); // keep only real rows
+
+      if (!name) return showError('Full Name is required.');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Valid District Email is required.');
+      if (!buildings.length) return showError('Select at least one Reporting Building.');
+      if (!funding.length) return showError('Select at least one Funding source and enter percentages.');
+      const sum = sumPercents(funding);
+      if (!isFinite(sum)) return showError('All Funding percentages must be numeric.');
+      if (Math.abs(sum - 100) > 0.01) return showError('Funding percentages must total 100%.');
+
+      setBusy(true);
+      google.script.run.withSuccessHandler(function(res){
+        setBusy(false);
+        if (!res || !res.ok) return showError(res && res.message || 'Failed to save details.');
+        showSuccess('Details saved.');
+        if (res.initial && Array.isArray(res.shareEmails) && res.shareEmails.length) {
+          alert('Reminder: Share this sheet with:\n\n' + res.shareEmails.join('\n'));
+        }
+      }).withFailureHandler(function(err){ setBusy(false); showError(err && err.message || String(err)); }).saveStartHereDetails({
+        name, email, buildings, funding
+      });
+    }
+  </script>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Start Here: User Details</h2>
+    <div class="stack">
+      <div class="field">
+        <label for="fullName">Full Name</label>
+        <input id="fullName" type="text" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="districtEmail">District Email</label>
+        <input id="districtEmail" type="email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="buildings">Reporting Building (multi-select)</label>
+        <select id="buildings" multiple size="6"></select>
+        <div class="hint">Hold SHIFT to select a range. Hold OPTION (COMMAND on Mac) to toggle selections.</div>
+      </div>
+      <div class="field">
+        <label for="funding">Funding source (multi-select)</label>
+        <select id="funding" multiple size="6"></select>
+        <div class="hint">Select one or more. Add custom using “Add New Funding…”.</div>
+      </div>
+      <div id="addFundingRow" class="field inline" hidden>
+        <input id="newFunding" type="text" placeholder="New funding source name" />
+        <button id="addFundingBtn" type="button" onclick="addFunding()">Add Funding</button>
+      </div>
+      <div class="field">
+        <label>Percentages</label>
+        <div id="fundingPercents" class="chips"></div>
+        <div class="hint">Enter percent for each selected funding so the total equals 100%.</div>
+      </div>
+      <div>
+        <button id="submit" type="button" onclick="submitDetails()">Add Details</button>
+        <div class="error" id="error" hidden></div>
+        <div class="success" id="success" hidden></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

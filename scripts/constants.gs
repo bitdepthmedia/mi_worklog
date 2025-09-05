@@ -10,7 +10,7 @@ var COLUMNS = { startTime: 2, endTime: 3, grantSource: 5, students: 6, work: 7 }
  * @constant
  * @type {{settings:string}}
  */
-var SHEETS = { settings: 'settings', studentCaseload: 'Student Caseload' };
+var SHEETS = { settings: 'settings', studentCaseload: 'Student Caseload', startHere: 'START HERE - DATA ENTRY TAB' };
 
 /**
  * Shared named ranges.

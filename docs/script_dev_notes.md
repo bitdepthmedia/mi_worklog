@@ -1,10 +1,11 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 08:18 EDT
+Last updated: 2025-09-05 10:22 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
 - UI/menu glue in `ui_menu.gs`, `ui_sidebar.gs` (Worklog), and `ui_student_sidebar.gs` (Students sidebar server functions).
+  - Start Here UI/server in `StartHereSidebar.html` and `ui_start_here_sidebar.gs`.
   - Business logic in `core.gs`.
   - Data access for references in `data_refs.gs`.
   - Time/date helpers in `utils_time.gs`.
@@ -36,8 +37,9 @@ Edge cases
 - If the day block is “full”, the new row writes to the block’s last row before sorting.
 
 UI notes
-- A single “Open Sidebar” top-level menu is created on open with two items: “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`).
+- A single “Open Sidebar” top-level menu is created on open with three items: “Start Here Details” (`showStartHereSidebar`), “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`).
 - Worklog: Add an image/drawing and Assign script → `showSidebar` for a one‑click entry.
+- Start Here: Add an image/drawing on the `START HERE - DATA ENTRY TAB` sheet and Assign script → `showStartHereSidebar`.
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
  - Follow naming and style rules in `docs/coding_conventions.md`.
 
@@ -87,3 +89,16 @@ Performance and UX
 
 Styling
 - StudentSidebar uses a distinct warm background color (`--bg:#fff7e6`) to clearly differentiate it from the Worklog sidebar (`Sidebar.html`), which keeps the neutral `--bg:#fafbfc`.
+Start Here – Data flow & validation
+- Buildings source: `settings!F3:F`.
+- Funding source list: `settings!G3:G`. The UI includes an “Add New Funding…” sentinel; when used, the new value is appended to the first empty cell in `settings!G3:G` via `addFundingSource()`.
+- Share reminder: after the first successful save (when `B4` was blank), the client displays an alert instructing the user to share the sheet with addresses found in `settings!H3:H`.
+- Save targets (`START HERE - DATA ENTRY TAB`):
+  - Full Name → `B4`
+  - District Email → `B5`
+  - Reporting Buildings (CSV) → `B6`
+  - Funding names → `A10:A18`
+  - Funding percentages → `B10:B18`
+- Validation: all fields required except multiple selections can contain more than one value. Funding percentages must be numeric and sum to 100% (±0.01 tolerance for float rounding). Max 9 funding entries enforced to fit rows 10–18.
+- Fix: Percent inputs now render correctly after funding selections. Initialization waits for `DOMContentLoaded` before attaching the `change` handler to `#funding` to avoid missing events in HtmlService sidebars.
+ - Storage: User-entered funding percentages (whole numbers like 50, 25) are converted to decimal fractions on write (e.g., 0.5, 0.25) in `B10:B18` per requirements.

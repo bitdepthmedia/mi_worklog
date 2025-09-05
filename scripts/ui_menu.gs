@@ -7,8 +7,9 @@
 function onOpen(e) {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('Open Sidebar')
+    .addItem('Start Here Details', 'showStartHereSidebar')
     .addItem('Open Worklog', 'showSidebar')
     .addItem('Add/Exit Student', 'showStudentSidebar')
     .addToUi();
-  SpreadsheetApp.getActive().toast('Use Open Sidebar to launch Worklog or Students.', 'miWorklog', 6);
+  SpreadsheetApp.getActive().toast('Use Open Sidebar → Start Here / Worklog / Students.', 'miWorklog', 6);
 }
