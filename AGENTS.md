@@ -36,7 +36,8 @@ This project automates and streamlines the assignment of users to log their work
 - **Documentation**
   - Each function includes a short docstring describing purpose, inputs, and return type.  
   - Sheet structure and function expectations are documented in a shared README tab.  
-  - Developers must review `script_dev_notes.md` before modifying any script.  
+  - Developers must review `docs/coding_conventions.md` before writing any code.  
+  - Developers must review `docs/script_dev_notes.md` before modifying any script.  
   - **Mandatory JSDoc for all functions** with the following template:
     ```
     /**
