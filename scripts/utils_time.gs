@@ -43,6 +43,23 @@ function getTodayWeekday_() {
 }
 
 /**
+ * Computes the duration in minutes from start to end (0..1439 minutes).
+ * Assumes same-day times; throws if end <= start to avoid negative/zero durations.
+ * @param {number} startMinutes - Minutes from midnight for start time (0..1439)
+ * @param {number} endMinutes - Minutes from midnight for end time (0..1439)
+ * @returns {number} Duration in minutes (integer)
+ */
+function durationMinutes_(startMinutes, endMinutes) {
+  if (typeof startMinutes !== 'number' || typeof endMinutes !== 'number') {
+    throw new Error('Start/End minutes must be numbers.');
+  }
+  if (endMinutes <= startMinutes) {
+    throw new Error('End Time must be after Start Time.');
+  }
+  return Math.round(endMinutes - startMinutes);
+}
+
+/**
  * Parses an ISO date string (YYYY-MM-DD) to an uppercase weekday name.
  * If invalid, throws. If weekend, returns 'SATURDAY' or 'SUNDAY'.
  * The weekday for a given calendar date is timezone-agnostic.

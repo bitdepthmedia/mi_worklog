@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 11:02 EDT
+Last updated: 2025-09-05 11:48 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -18,7 +18,7 @@ Design
 Detection logic
 - Single-column-per-day layout: `findDayBlock_` scans down from the weekday label to locate the nearby header row (in‑memory only).
 - The end of the block is the row containing “Total Daily Hrs”.
-- Columns are fixed using `COLUMNS`: Start(B), End(C), Grant(E), Students(F), Work(G).
+- Columns are fixed using `COLUMNS`: Start(B), End(C), Minutes(D), Grant(E), Students(F), Work(G).
 
 Task options
 - Loaded from named range `TaskOptions` if present; otherwise from `settings!A3:A`. Falls back to `task_options`/`Reference`/`Ref` (col A), then a default list.
@@ -31,6 +31,8 @@ Grant sources
 Validation
 - Client: `<input type="time">` ensures `HH:MM` values. Server also accepts `HH:MM AM/PM` for backward compatibility. End must be after Start.
 - Times are written as time‑only serial fractions (minutes/1440) to avoid timezone shifts and improve sort stability.
+- Duration in minutes is computed server‑side via `durationMinutes_` and written to column D on insert (no formulas required). This protects against manual row insertions or deletions that might otherwise break per‑row formulas.
+ - A simple `onEdit` delegates to `handleWorklogMinutesOnEdit_` to recompute Minutes when users manually edit Start/End cells on Week sheets. Blank/invalid times clear Minutes and add a cell note to indicate the issue.
 - Task description uses the user’s free‑text if provided; else the dropdown value.
 
 Edge cases

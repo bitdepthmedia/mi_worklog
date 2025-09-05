@@ -1,9 +1,9 @@
 /**
  * Shared constants for sheet structure and names.
  * @constant
- * @type {{startTime:number,endTime:number,grantSource:number,students:number,work:number}}
+ * @type {{startTime:number,endTime:number,minutes:number,grantSource:number,students:number,work:number}}
  */
-var COLUMNS = { startTime: 2, endTime: 3, grantSource: 5, students: 6, work: 7 };
+var COLUMNS = { startTime: 2, endTime: 3, minutes: 4, grantSource: 5, students: 6, work: 7 };
 
 /**
  * Shared sheet names.

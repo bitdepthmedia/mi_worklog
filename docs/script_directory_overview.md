@@ -1,15 +1,15 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-05 11:02 EDT (Fix show/hide API, add button triggers, remove dialog hint)
+Last updated: 2025-09-05 11:48 EDT (Persist Minutes in column D on insert; auto-recompute Minutes on Start/End edits)
 
 Files
-- scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`.
+- scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`, `handleWorklogMinutesOnEdit_`, `valueToMinutes_`.
 - scripts/ui_menu.gs: Sheets UI glue for menus. Public: `onOpen`.
 - scripts/ui_sidebar.gs: Sidebar composition helpers. Public: `showSidebar`, `include`.
 - scripts/ui_student_sidebar.gs: Student Caseload sidebar server. Public: `showStudentSidebar`, `getStudentSidebarInit`, `addStudentToCaseload`, `exitStudentFromCaseload`. Private helpers: `getGroupNames_`, `getExitReasons_`, `getActiveStudents_`, `getStudentIdLength_`, `validateAddPayload_`, `resolveGroupSelection_`, `parseIsoDate_`, `findStudentHeaderRow_`. Validation now allows blank group when adding a student.
 - scripts/ui_start_here_sidebar.gs: Start Here sidebar server. Public: `showStartHereSidebar`, `getStartHereInit`, `addFundingSource`, `saveStartHereDetails`. Reads buildings from `settings!F3:F`, funding from `settings!G3:G`, and share emails from `settings!H3:H`. Saves to `START HERE - DATA ENTRY TAB`: Name `B4`, Email `B5`, Buildings `B6` (CSV), Funding `A10:A18`, Percent `B10:B18`.
 - scripts/data_refs.gs: Data access for sidebar/reference tabs. Public: `getTaskOptions`, `getGrantSources`, `getActiveStudentsAndGroups` (cached for 10 min). Private: `cacheKeyActiveStudents_`, `invalidateActiveStudentsAndGroupsCache_`, and `onEdit` to invalidate cache on Student Caseload edits.
-- scripts/utils_time.gs: Time/date utilities. Private: `parseUserTimeToSerial_`, `getTodayWeekday_`, `parseDateOverrideToWeekday_`.
+- scripts/utils_time.gs: Time/date utilities. Private: `parseUserTimeToSerial_`, `getTodayWeekday_`, `parseDateOverrideToWeekday_`, `durationMinutes_`.
 - scripts/constants.gs: Shared constants for sheet structure and names. Public objects: `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - scripts/Sidebar.html: Worklog Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker, a dropdown of task options, and a free‑text field. Adds optional Student selection controls: multi‑select Student Names and single‑select Student Group (mutually exclusive, aria‑described). Calls `addTask` with `studentNames`/`studentGroup`. After a successful add, all inputs are cleared for rapid next entry; the success message remains visible and auto-hides after ~10s.
   - Behavior: When a date is chosen (or defaulting to today), `addTask` automatically routes the entry to the correct `Week N` sheet, creating it from `Week Template` if needed, and then inserts into the appropriate weekday block (weekends map to Monday). The active sheet is switched to the target week after insertion.
@@ -27,7 +27,7 @@ Key flows
 - StudentSidebar.html → lazily loads groups from `settings!E3:E`, exit reasons from `settings!C3:C`, expected ID length from `settings!D3`, and active students (no exit date) from the Student Caseload sheet. Supports “Add New Group…” which inserts into the first empty cell of `settings!E3:E` via server helper.
 - StartHereSidebar.html → lazily loads buildings from `settings!F3:F`, funding from `settings!G3:G`, and saved values from the Start Here sheet. Supports “Add New Funding…” which inserts into the first empty cell of `settings!G3:G` via server helper.
   - Funding percent inputs accept whole-number percentages (e.g., 50, 25, 25). On save, values are written to `B10:B18` as decimal fractions (e.g., 0.5, 0.25, 0.25).
-- addTask → parses/validates inputs, resolves target weekday (mapping weekend to Monday), locates the day block, writes values, and sorts by Start Time (column B). If student names or a group is provided, resolves active Student ID(s) and writes to Column F as comma‑separated IDs (no spaces). Rejects dual selection server‑side.
+- addTask → parses/validates inputs, resolves target weekday (mapping weekend to Monday), locates the day block, writes values, and sorts by Start Time (column B). Also writes the duration in minutes to Column D (computed server‑side; no row formula required). If student names or a group is provided, resolves active Student ID(s) and writes to Column F as comma‑separated IDs (no spaces). Rejects dual selection server‑side.
 
 Assumptions and discovery
 - Day blocks are labeled with uppercase weekday names (e.g., MONDAY). Each day’s block uses the same columns across the sheet.
@@ -39,6 +39,7 @@ Assumptions and discovery
 Fixed columns (sheet-wide)
 - Start Time: column B (2)
 - End Time: column C (3)
+- Minutes: column D (4) — computed and written by script on insert
 - Grant Source: column E (5)
 - Students: column F (6) [reserved]
 - What did you work on?: column G (7)
@@ -56,6 +57,8 @@ How to install in Apps Script
 Notes
 - Sorting uses the Start Time column (fixed to column B). Blank rows remain at the bottom after sort.
 - Times are stored as time-only serial fractions (no timezone dependency). Use your preferred time number format in the sheet.
+- Duration Minutes is persisted as a whole number in column D during insertion to protect against accidental formula deletion during manual row edits.
+- On manual edits: A global `onEdit` hook recalculates Minutes in column D whenever a user changes Start (B) or End (C) in Week sheets. Invalid entries (End <= Start or incomplete times) clear Minutes and add a note on the Minutes cell.
 - Day/Date override is optional. Leaving it blank posts the entry to Today’s weekday; weekend entries map to Monday.
 
 Weekly manager

@@ -7,7 +7,7 @@
  * (e.g., MONDAY) and the following header row with column labels.
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet
  * @param {string} dayName - e.g., "MONDAY"
- * @returns {{startRow:number,endRow:number,startCol:number,cols:{startTime:number,endTime:number,grantSource:number,students:number,whatDidYouWorkOn:number}}}
+ * @returns {{startRow:number,endRow:number,startCol:number,cols:{startTime:number,endTime:number,minutes:number,grantSource:number,students:number,whatDidYouWorkOn:number}}}
  */
 function findDayBlock_(sheet, dayName) {
   var rng = sheet.getDataRange();
@@ -58,6 +58,7 @@ function findDayBlock_(sheet, dayName) {
     cols: {
       startTime: COLUMNS.startTime,
       endTime: COLUMNS.endTime,
+      minutes: COLUMNS.minutes,
       grantSource: COLUMNS.grantSource,
       students: COLUMNS.students,
       whatDidYouWorkOn: COLUMNS.work
@@ -119,6 +120,17 @@ function addTask(entry) {
   // Batch write key fields. Using time-only serial fractions to avoid timezone shifts.
   sheet.getRange(targetRow, block.cols.startTime).setValue(start.fraction);
   sheet.getRange(targetRow, block.cols.endTime).setValue(end.fraction);
+  // Also persist the duration in minutes (column D) to avoid reliance on row formulas.
+  try {
+    var mins = durationMinutes_(start.minutes, end.minutes);
+    var minCell = sheet.getRange(targetRow, block.cols.minutes);
+    // Prefer whole minutes format
+    try { minCell.setNumberFormat('0'); } catch (fmtErr) { /* ignore format errors */ }
+    minCell.setValue(mins);
+  } catch (durErr) {
+    // If duration calc fails for any reason, do not block insertion; log instead.
+    console && console.warn && console.warn('Duration minutes write skipped:', durErr);
+  }
   sheet.getRange(targetRow, block.cols.whatDidYouWorkOn).setValue(taskText);
 
   // Grant Source: only write when more than one source exists
@@ -191,4 +203,87 @@ function addTask(entry) {
   var msg = 'Task added to ' + day + ' in ' + sheet.getName() + '.';
   if (warnings.length) msg += ' ' + warnings.join(' ');
   return {ok:true, day:day, placedRow:targetRow, message: msg };
+}
+
+/**
+ * Converts a cell value to minutes from midnight (0..1439).
+ * Supports Date, number (fraction of day), and time strings.
+ * @param {(Date|number|string|null)} val - Cell value from Start/End columns.
+ * @returns {(number|null)} Minutes or null if blank/unknown format
+ */
+function valueToMinutes_(val) {
+  if (val === null || val === '' || typeof val === 'undefined') return null;
+  if (Object.prototype.toString.call(val) === '[object Date]') {
+    var d = /** @type {Date} */ (val);
+    if (isNaN(d.getTime())) return null;
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  if (typeof val === 'number') {
+    // Treat as time serial fraction 0..1
+    var m = Math.round(val * 24 * 60) % (24 * 60);
+    if (m < 0) m += 24 * 60;
+    return m;
+  }
+  if (typeof val === 'string') {
+    try { return parseUserTimeToSerial_(val).minutes; } catch (e) { return null; }
+  }
+  return null;
+}
+
+/**
+ * Recomputes Minutes (col D) for the edited rows when Start/End cells change.
+ * Only runs for Week sheets and when the edited range intersects columns B or C.
+ * @param {GoogleAppsScript.Events.SheetsOnEdit} e - Simple onEdit event.
+ * @returns {void}
+ */
+function handleWorklogMinutesOnEdit_(e) {
+  try {
+    var rng = e && e.range;
+    var sh = rng && rng.getSheet();
+    if (!sh) return;
+    var name = sh.getName();
+    // Restrict to live week sheets
+    if (!(name && (name === 'Week Template' || (typeof WEEK_SHEET_PREFIX === 'string' && name.indexOf(WEEK_SHEET_PREFIX) === 0) || /^Week\s+\d+/.test(name)))) return;
+
+    var colStart = rng.getColumn();
+    var colEnd = colStart + rng.getNumColumns() - 1;
+    // Only proceed if edit touches Start(B=2) or End(C=3)
+    if (colEnd < COLUMNS.startTime || colStart > COLUMNS.endTime) return;
+
+    var rowStart = rng.getRow();
+    var numRows = rng.getNumRows();
+
+    // Read Start/End values for affected rows in one batch
+    var startVals = sh.getRange(rowStart, COLUMNS.startTime, numRows, 1).getValues();
+    var endVals = sh.getRange(rowStart, COLUMNS.endTime, numRows, 1).getValues();
+
+    var outVals = []; // minutes or blank
+    var outNotes = []; // note strings
+    for (var i = 0; i < numRows; i++) {
+      var s = valueToMinutes_(startVals[i][0]);
+      var en = valueToMinutes_(endVals[i][0]);
+      var note = '';
+      var cellVal = '';
+      if (s === null || en === null) {
+        cellVal = '';
+        note = '';
+      } else if (en <= s) {
+        cellVal = '';
+        note = 'End Time must be after Start Time.';
+      } else {
+        cellVal = Math.round(en - s);
+        note = '';
+      }
+      outVals.push([cellVal]);
+      outNotes.push([note]);
+    }
+
+    var minRange = sh.getRange(rowStart, COLUMNS.minutes, numRows, 1);
+    try { minRange.setNumberFormat('0'); } catch (fmtErr) { /* ignore */ }
+    minRange.setValues(outVals);
+    try { minRange.setNotes(outNotes); } catch (noteErr) { /* ignore */ }
+  } catch (err) {
+    // Defensive: never throw from onEdit handler
+    try { console && console.warn && console.warn('handleWorklogMinutesOnEdit_ error:', err); } catch (ignore) {}
+  }
 }

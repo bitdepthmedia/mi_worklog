@@ -164,12 +164,16 @@ function invalidateActiveStudentsAndGroupsCache_() {
 function onEdit(e) {
   try {
     var sh = (e && e.range && e.range.getSheet()) ? e.range.getSheet() : null;
-    if (!sh) return;
-    var name = sh.getName();
-    if (name === SHEETS.studentCaseload || name === 'Student Caseload') {
-      invalidateActiveStudentsAndGroupsCache_();
+    if (sh) {
+      var name = sh.getName();
+      // Student Caseload cache invalidation
+      if (name === SHEETS.studentCaseload || name === 'Student Caseload') {
+        invalidateActiveStudentsAndGroupsCache_();
+      }
     }
   } catch (err) {
     // ignore
   }
+  // Recompute Minutes for edits on Week sheets (Start/End changes)
+  try { handleWorklogMinutesOnEdit_(e); } catch (ignore) {}
 }
