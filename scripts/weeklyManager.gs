@@ -207,18 +207,4 @@ function openWeekSelectorDialog() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Select Week');
 }
 
-/**
- * Registers the Worklog menu under the provided UI instance.
- * Call from the project's main onOpen() to avoid duplicate simple triggers.
- * @param {GoogleAppsScript.Base.Ui} ui - Spreadsheet UI instance.
- * @returns {void}
- */
-function registerWorklogMenu_(ui) {
-  ui.createMenu('Worklog')
-    .addItem('Show Current Week', 'showCurrentWeek')
-    .addItem('Open Week Selector…', 'openWeekSelectorDialog')
-    .addSeparator()
-    .addItem('Generate All Weeks (52)', 'generateAllWeeks')
-    .addItem('Show All Weeks', 'showAllWeeks')
-    .addToUi();
-}
+// Menu registration lives in ui_menu.gs to keep UI concerns centralized.

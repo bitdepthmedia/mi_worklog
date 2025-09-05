@@ -17,3 +17,19 @@ function onOpen(e) {
   }
   SpreadsheetApp.getActive().toast('Use Open Sidebars → User Details / Worklog / Students.', 'miWorklog', 6);
 }
+
+/**
+ * Registers the week management menu (Find/Create Worklog).
+ * Centralized here to keep UI menu setup in one place.
+ * @param {GoogleAppsScript.Base.Ui} ui - Spreadsheet UI instance.
+ * @returns {void}
+ */
+function registerWorklogMenu_(ui) {
+  ui.createMenu('Find/Create Worklog')
+    .addItem('Show Current Week', 'showCurrentWeek')
+    .addItem('Open Week Selector…', 'openWeekSelectorDialog')
+    .addSeparator()
+    .addItem('Generate All Weeks (52)', 'generateAllWeeks')
+    .addItem('Show All Weeks', 'showAllWeeks')
+    .addToUi();
+}

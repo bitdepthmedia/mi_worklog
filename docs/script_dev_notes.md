@@ -13,7 +13,7 @@ Design
 - All functions include JSDoc and input validation where applicable.
 - Batch writes where possible; sorting is scoped to the day block only.
 - Simple triggers can’t open sidebars/dialogs. `onOpen` only adds menu + toast. `Sidebar.html` lazily loads data via `google.script.run`.
- - Weekly manager UI is exposed via a top-level “Worklog” menu registered from `ui_menu.gs` by calling `registerWorklogMenu_(ui)` (to avoid multiple `onOpen` definitions). A centered modal dialog (`WeekDialog.html`) is used for date selection. Optional wrappers in `ui_buttons.gs` can be assigned to drawings.
+ - Weekly manager UI is exposed via a top-level “Find/Create Worklog” menu defined in `ui_menu.gs` by `registerWorklogMenu_(ui)` (to avoid multiple `onOpen` definitions). A centered modal dialog (`WeekDialog.html`) is used for date selection. Optional wrappers in `ui_buttons.gs` can be assigned to drawings.
 
 Detection logic
 - Single-column-per-day layout: `findDayBlock_` scans down from the weekday label to locate the nearby header row (in‑memory only).
@@ -38,7 +38,7 @@ Edge cases
 - If the day block is “full”, the new row writes to the block’s last row before sorting.
 
 UI notes
-- A single “Open Sidebar” top-level menu is created on open with three items: “Start Here Details” (`showStartHereSidebar`), “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`). In addition, the Worklog weekly manager registers a separate “Worklog” menu providing week creation/visibility actions.
+ - A single “Open Sidebar” top-level menu is created on open with three items: “Start Here Details” (`showStartHereSidebar`), “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`). In addition, the Worklog weekly manager registers a separate “Find/Create Worklog” menu providing week creation/visibility actions.
 - Worklog: Add an image/drawing and Assign script → `showSidebar` for a one‑click entry.
 - Start Here: Add an image/drawing on the `START HERE - DATA ENTRY TAB` sheet and Assign script → `showStartHereSidebar`.
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
