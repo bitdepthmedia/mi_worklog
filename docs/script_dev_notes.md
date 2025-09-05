@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 06:30 EDT
+Last updated: 2025-09-05 08:18 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -41,6 +41,17 @@ UI notes
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
  - Follow naming and style rules in `docs/coding_conventions.md`.
 
+Students UI – Group selection
+- The Group dropdown in `StudentSidebar.html` does not auto-select the first group. It includes a leading empty option so the control starts blank and users can clear back to “no group”.
+- Server validation updated: `validateAddPayload_` now allows a blank group. If a user selects “Add New Group…” the server will still require a non-empty `newGroup` via `resolveGroupSelection_`.
+
+Students UI – Required fields
+- Add Student: Client-side validation enforces Grade (0–12), Student Name, Student ID (numeric; if `idLength` is provided from settings, length must match), Service Area, and Entrance Date. Group is optional; if “Add New Group…” is chosen, the new group name is required.
+- Exit Student: Client-side validation requires a selected Student, Exit Date, and Exit Reason (either dropdown value or custom text).
+
+Limitations (Sidebar positioning)
+- Google Sheets sidebars (HtmlService sidebar) are fixed on the right and cannot be programmatically docked to the left. Alternatives: use a modal or modeless dialog (`showModalDialog`/`showModelessDialog`), which appear centered and are not docked.
+
 Server notes (current)
 - Worklog: `TaskEntry` includes `dateOverride?: string | null` and optional `grantSource`.
 - Students: `addStudentToCaseload()` validates grade 0–12, numeric Student ID with length from `settings!D3`, required fields, resolves “Add New Group…” into `settings!E3:E`, writes row `[A..H]`, then sorts by Entrance Date (F), Grade (A), Student Name (B). `exitStudentFromCaseload()` writes Exit Date (G) and Exit Reason (H) for the selected active student. Exit reason can be chosen from the dropdown (settings!C3:C) or typed as a custom text input.
@@ -73,3 +84,6 @@ Cache invalidation
 Performance and UX
 - One batched read for Student Caseload; derived structures cached ~10 minutes.
 - Deterministic ordering for group expansion (by Student Name asc); IDs deduplicated.
+
+Styling
+- StudentSidebar uses a distinct warm background color (`--bg:#fff7e6`) to clearly differentiate it from the Worklog sidebar (`Sidebar.html`), which keeps the neutral `--bg:#fafbfc`.

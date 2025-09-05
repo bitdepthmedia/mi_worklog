@@ -1,17 +1,17 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-05 06:37 EDT (Worklog student selection + cache flush)
+Last updated: 2025-09-05 08:18 EDT (StudentSidebar: distinct background theme)
 
 Files
 - scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`.
 - scripts/ui_menu.gs: Sheets UI glue for menus. Public: `onOpen`.
 - scripts/ui_sidebar.gs: Sidebar composition helpers. Public: `showSidebar`, `include`.
-- scripts/ui_student_sidebar.gs: Student Caseload sidebar server. Public: `showStudentSidebar`, `getStudentSidebarInit`, `addStudentToCaseload`, `exitStudentFromCaseload`. Private helpers: `getGroupNames_`, `getExitReasons_`, `getActiveStudents_`, `getStudentIdLength_`, `validateAddPayload_`, `resolveGroupSelection_`, `parseIsoDate_`, `findStudentHeaderRow_`.
+- scripts/ui_student_sidebar.gs: Student Caseload sidebar server. Public: `showStudentSidebar`, `getStudentSidebarInit`, `addStudentToCaseload`, `exitStudentFromCaseload`. Private helpers: `getGroupNames_`, `getExitReasons_`, `getActiveStudents_`, `getStudentIdLength_`, `validateAddPayload_`, `resolveGroupSelection_`, `parseIsoDate_`, `findStudentHeaderRow_`. Validation now allows blank group when adding a student.
 - scripts/data_refs.gs: Data access for sidebar/reference tabs. Public: `getTaskOptions`, `getGrantSources`, `getActiveStudentsAndGroups` (cached for 10 min). Private: `cacheKeyActiveStudents_`, `invalidateActiveStudentsAndGroupsCache_`, and `onEdit` to invalidate cache on Student Caseload edits.
 - scripts/utils_time.gs: Time/date utilities. Private: `parseUserTimeToSerial_`, `getTodayWeekday_`, `parseDateOverrideToWeekday_`.
 - scripts/constants.gs: Shared constants for sheet structure and names. Public objects: `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - scripts/Sidebar.html: Worklog Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker, a dropdown of task options, and a free‑text field. Adds optional Student selection controls: multi‑select Student Names and single‑select Student Group (mutually exclusive, aria‑described). Calls `addTask` with `studentNames`/`studentGroup`.
-- scripts/StudentSidebar.html: Student Caseload Sidebar UI. Two modes: Add Student and Exit Student. Exit mode supports choosing a reason from dropdown or typing a custom reason. Calls `addStudentToCaseload` and `exitStudentFromCaseload`; dynamically loads Groups, Exit Reasons, Student ID length, and current active students list.
+- scripts/StudentSidebar.html: Student Caseload Sidebar UI. Two modes: Add Student and Exit Student. Exit mode supports choosing a reason from dropdown or typing a custom reason. Calls `addStudentToCaseload` and `exitStudentFromCaseload`; dynamically loads Groups, Exit Reasons, Student ID length, and current active students list. Group dropdown starts with an explicit empty option (no auto-selection) and allows clearing back to no group. Client-side validation enforces required fields: Add requires Grade, Name, Student ID (numeric, optional length), Service Area, Entrance Date; Group optional. Exit requires Student selection, Exit Date, and Exit Reason (from dropdown or custom text). Uses a distinct warm background color to differentiate from the Worklog sidebar.
 
 Key flows
 - onOpen → adds a single “Open Sidebar” menu with items “Open Worklog” and “Add/Exit Student”; shows a toast. Does not auto-open UI (simple trigger limitation).

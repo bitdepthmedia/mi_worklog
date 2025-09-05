@@ -183,7 +183,7 @@ function getStudentIdLength_() {
 }
 
 /**
- * Validates the Add Student payload.
+ * Validates the Add Student payload. Group may be blank.
  * @param {{grade:(number|string), name:string, group:string, newGroup?:string, studentId:(number|string), serviceArea:string, entranceDate:string}} p
  * @returns {void}
  */
@@ -192,7 +192,6 @@ function validateAddPayload_(p) {
   var grade = Number(p.grade);
   if (!isFinite(grade) || grade < 0 || grade > 12) throw new Error('Grade must be between 0 and 12 (KG=0).');
   if (!String(p.name || '').trim()) throw new Error('Student Name is required.');
-  if (!String(p.group || '').trim()) throw new Error('Group selection is required (or Add New).');
   var idStr = String(p.studentId || '').trim();
   if (!/^[0-9]+$/.test(idStr)) throw new Error('Student ID must be numeric.');
   var needLen = getStudentIdLength_();

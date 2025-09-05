@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <base target="_top">
   <style>
-    :root { --bg:#fafbfc; --fg:#111; --muted:#666; --pri:#1a73e8; --border:#e5e7eb; }
+    /* Use a distinct, warm background to differentiate from Worklog sidebar */
+    :root { --bg:#fff7e6; --fg:#111; --muted:#666; --pri:#1a73e8; --border:#e5e7eb; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
     .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
     h2 { margin: 0 0 8px; font-size: 16px; }
@@ -35,12 +36,12 @@
       <div class="row">
         <div class="field">
           <label for="grade">Student Grade</label>
-          <input id="grade" type="number" min="0" max="12" placeholder="0-12" />
+          <input id="grade" type="number" min="0" max="12" placeholder="0-12" required />
           <div class="hint">KG = 0</div>
         </div>
         <div class="field">
           <label for="name">Student Name</label>
-          <input id="name" type="text" placeholder="First Last" />
+          <input id="name" type="text" placeholder="First Last" required />
         </div>
       </div>
       <div class="field">
@@ -53,17 +54,17 @@
       <div class="row">
         <div class="field">
           <label for="studentId">Student ID#</label>
-          <input id="studentId" type="text" inputmode="numeric" />
+          <input id="studentId" type="text" inputmode="numeric" required />
           <div class="hint" id="idHint"></div>
         </div>
         <div class="field">
           <label for="service">Service Area</label>
-          <input id="service" type="text" placeholder="Phonics, MLL Service, Attendance, etc." />
+          <input id="service" type="text" placeholder="Phonics, MLL Service, Attendance, etc." required />
         </div>
       </div>
       <div class="field">
         <label for="entrance">Entrance Date</label>
-        <input id="entrance" type="date" />
+        <input id="entrance" type="date" required />
       </div>
       <button id="addBtn">Add Student</button>
       <div class="error" id="addErr" hidden></div>
@@ -79,7 +80,7 @@
       <div class="row">
         <div class="field">
           <label for="exitDate">Exit Date</label>
-          <input id="exitDate" type="date" />
+          <input id="exitDate" type="date" required />
         </div>
         <div class="field">
           <label for="exitReason">Exit Reason</label>
@@ -109,14 +110,24 @@
     });
 
     // Load init data
+    let initData = null; // cache init data for client validation
     const init = () => {
       google.script.run.withSuccessHandler((res) => {
+        initData = res || {};
         // Groups
         const groupSel = $('group');
         groupSel.innerHTML = '';
+        // Add an explicit empty option so no group is selected by default
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '';
+        groupSel.appendChild(noneOpt);
+        // Populate groups (including "Add New Group…" from server)
         (res.groups || []).forEach(g => {
           const o = document.createElement('option'); o.value = g; o.textContent = g; groupSel.appendChild(o);
         });
+        // Ensure the default remains unselected (empty value)
+        groupSel.value = '';
         $('newGroupWrap').style.display = groupSel.value && groupSel.value.indexOf('Add New Group') === 0 ? 'block' : 'none';
         groupSel.addEventListener('change', () => {
           $('newGroupWrap').style.display = groupSel.value && groupSel.value.indexOf('Add New Group') === 0 ? 'block' : 'none';
@@ -149,14 +160,36 @@
 
     $('addBtn').addEventListener('click', () => {
       showErr('addErr',''); showOk('addOk','');
+      // Client-side required validation (Group optional)
+      const gradeVal = ($('grade').value || '').trim();
+      const nameVal = ($('name').value || '').trim();
+      const groupVal = ($('group').value || '').trim();
+      const newGroupVal = ($('newGroup').value || '').trim();
+      const idVal = ($('studentId').value || '').trim();
+      const serviceVal = ($('service').value || '').trim();
+      const entranceVal = ($('entrance').value || '').trim();
+
+      if (!gradeVal) return showErr('addErr', 'Grade is required.');
+      const gNum = Number(gradeVal);
+      if (!isFinite(gNum) || gNum < 0 || gNum > 12) return showErr('addErr', 'Grade must be between 0 and 12 (KG=0).');
+      if (!nameVal) return showErr('addErr', 'Student Name is required.');
+      if (!idVal) return showErr('addErr', 'Student ID is required.');
+      if (!/^\d+$/.test(idVal)) return showErr('addErr', 'Student ID must be numeric.');
+      if (initData && initData.idLength && String(idVal).length !== Number(initData.idLength)) {
+        return showErr('addErr', `Student ID must be exactly ${initData.idLength} digits.`);
+      }
+      if (!serviceVal) return showErr('addErr', 'Service Area is required.');
+      if (!entranceVal) return showErr('addErr', 'Entrance Date is required.');
+      if (groupVal.indexOf('Add New Group') === 0 && !newGroupVal) return showErr('addErr', 'Please enter a new group name.');
+
       const payload = {
-        grade: $('grade').value,
-        name: $('name').value,
-        group: $('group').value,
-        newGroup: $('newGroup').value,
-        studentId: $('studentId').value,
-        serviceArea: $('service').value,
-        entranceDate: $('entrance').value
+        grade: gradeVal,
+        name: nameVal,
+        group: groupVal,
+        newGroup: newGroupVal,
+        studentId: idVal,
+        serviceArea: serviceVal,
+        entranceDate: entranceVal
       };
       google.script.run.withSuccessHandler(res => {
         if (!res || !res.ok) return showErr('addErr', res && res.message || 'Failed to add');
@@ -164,7 +197,7 @@
         // refresh active list in case this student is now active
         init();
         // clear some fields for next entry
-        $('name').value=''; $('studentId').value=''; $('service').value='';
+        $('name').value=''; $('studentId').value=''; $('service').value=''; $('entrance').value=''; $('newGroup').value=''; $('group').value=''; $('newGroupWrap').style.display='none';
       }).withFailureHandler(err => { showErr('addErr', err && err.message || String(err)); })
       .addStudentToCaseload(payload);
     });
@@ -172,7 +205,14 @@
     $('exitBtn').addEventListener('click', () => {
       showErr('exitErr',''); showOk('exitOk','');
       const reasonText = ($('exitReasonText').value || '').trim();
-      const payload = { row: Number($('studentSel').value||0), exitDate: $('exitDate').value, exitReason: reasonText || $('exitReason').value };
+      const studentRowVal = ($('studentSel').value || '').trim();
+      const exitDateVal = ($('exitDate').value || '').trim();
+      const exitReasonVal = reasonText || ($('exitReason').value || '').trim();
+      // Client-side required validation for Exit
+      if (!studentRowVal) return showErr('exitErr', 'Please select a student.');
+      if (!exitDateVal) return showErr('exitErr', 'Exit Date is required.');
+      if (!exitReasonVal) return showErr('exitErr', 'Exit Reason is required.');
+      const payload = { row: Number(studentRowVal||0), exitDate: exitDateVal, exitReason: exitReasonVal };
       google.script.run.withSuccessHandler(res => {
         if (!res || !res.ok) return showErr('exitErr', res && res.message || 'Failed to exit');
         showOk('exitOk', res.message);
