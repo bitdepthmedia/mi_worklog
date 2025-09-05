@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 05:18
+Last updated: 2025-09-05 06:19 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -36,9 +36,9 @@ Edge cases
 - If the day block is “full”, the new row writes to the block’s last row before sorting.
 
 UI notes
+- A single “Open Sidebar” top-level menu is created on open with two items: “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`).
 - Worklog: Add an image/drawing and Assign script → `showSidebar` for a one‑click entry.
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
-- Also adds a `Students` custom menu on open for redundancy.
  - Follow naming and style rules in `docs/coding_conventions.md`.
 
 Server notes (current)

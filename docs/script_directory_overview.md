@@ -1,6 +1,6 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-05 05:18 (Students: custom Exit Reason)
+Last updated: 2025-09-05 06:19 EDT (Unified menu: Open Sidebar)
 
 Files
 - scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`.
@@ -14,7 +14,7 @@ Files
 - scripts/StudentSidebar.html: Student Caseload Sidebar UI. Two modes: Add Student and Exit Student. Exit mode supports choosing a reason from dropdown or typing a custom reason. Calls `addStudentToCaseload` and `exitStudentFromCaseload`; dynamically loads Groups, Exit Reasons, Student ID length, and current active students list.
 
 Key flows
-- onOpen → adds “Worklog” menu, shows a toast; does not auto-open UI (simple trigger limitation).
+- onOpen → adds a single “Open Sidebar” menu with items “Open Worklog” and “Add/Exit Student”; shows a toast. Does not auto-open UI (simple trigger limitation).
 - showSidebar → displays the sidebar (no data reads at open).
 - Sidebar.html → lazily loads task options via `google.script.run.getTaskOptions()` and Grant Sources via `getGrantSources()` after render.
 - StudentSidebar.html → lazily loads groups from `settings!E3:E`, exit reasons from `settings!C3:C`, expected ID length from `settings!D3`, and active students (no exit date) from the Student Caseload sheet. Supports “Add New Group…” which inserts into the first empty cell of `settings!E3:E` via server helper.
@@ -37,7 +37,7 @@ Fixed columns (sheet-wide)
 How to install in Apps Script
 - In the target Google Sheet, open Extensions → Apps Script.
 - Create files in the `scripts/` directory corresponding to this repo: `core.gs`, `ui_menu.gs`, `ui_sidebar.gs`, `data_refs.gs`, `utils_time.gs`, `constants.gs`, and `Sidebar.html`. Paste contents accordingly.
-- Reload the spreadsheet → use the Worklog or Students menus to open the sidebars. To add a sheet button for Students, insert a Drawing/Image and Assign script `showStudentSidebar`.
+- Reload the spreadsheet → use the “Open Sidebar” menu, then choose “Open Worklog” or “Add/Exit Student”. To add a sheet button for Students, insert a Drawing/Image and Assign script `showStudentSidebar`.
 
 Notes
 - Sorting uses the Start Time column (fixed to column B). Blank rows remain at the bottom after sort.
