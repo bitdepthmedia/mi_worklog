@@ -98,6 +98,8 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const setHidden = (el, h) => el.hidden = !!h;
+    function setBusyAdd(b){ const btn=$('addBtn'); if(btn) btn.disabled = !!b; }
+    function setBusyExit(b){ const btn=$('exitBtn'); if(btn) btn.disabled = !!b; }
 
     function toggleMode(mode){
       $('addCard').style.display = mode === 'add' ? 'block' : 'none';
@@ -191,14 +193,16 @@
         serviceArea: serviceVal,
         entranceDate: entranceVal
       };
+      setBusyAdd(true);
       google.script.run.withSuccessHandler(res => {
+        setBusyAdd(false);
         if (!res || !res.ok) return showErr('addErr', res && res.message || 'Failed to add');
         showOk('addOk', res.message);
         // refresh active list in case this student is now active
         init();
         // clear some fields for next entry
         $('name').value=''; $('studentId').value=''; $('service').value=''; $('entrance').value=''; $('newGroup').value=''; $('group').value=''; $('newGroupWrap').style.display='none';
-      }).withFailureHandler(err => { showErr('addErr', err && err.message || String(err)); })
+      }).withFailureHandler(err => { setBusyAdd(false); showErr('addErr', err && err.message || String(err)); })
       .addStudentToCaseload(payload);
     });
 
@@ -213,11 +217,13 @@
       if (!exitDateVal) return showErr('exitErr', 'Exit Date is required.');
       if (!exitReasonVal) return showErr('exitErr', 'Exit Reason is required.');
       const payload = { row: Number(studentRowVal||0), exitDate: exitDateVal, exitReason: exitReasonVal };
+      setBusyExit(true);
       google.script.run.withSuccessHandler(res => {
+        setBusyExit(false);
         if (!res || !res.ok) return showErr('exitErr', res && res.message || 'Failed to exit');
         showOk('exitOk', res.message);
         init();
-      }).withFailureHandler(err => { showErr('exitErr', err && err.message || String(err)); })
+      }).withFailureHandler(err => { setBusyExit(false); showErr('exitErr', err && err.message || String(err)); })
       .exitStudentFromCaseload(payload);
     });
   </script>

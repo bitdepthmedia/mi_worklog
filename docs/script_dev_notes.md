@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 10:22 EDT
+Last updated: 2025-09-05 10:36 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -42,6 +42,14 @@ UI notes
 - Start Here: Add an image/drawing on the `START HERE - DATA ENTRY TAB` sheet and Assign script → `showStartHereSidebar`.
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
  - Follow naming and style rules in `docs/coding_conventions.md`.
+
+Worklog UI – Post-insert UX
+- After a successful Add Task, all input fields are cleared (date, start/end, task option, task text, student selections, and grant selection if shown) to indicate readiness for the next entry.
+- The success message remains visible for user confirmation and auto-hides after ~10 seconds.
+
+Students UI – In-progress feedback
+- The “Add Student” button is disabled while the insert request is in-flight and re-enabled on completion or error.
+- The “Exit Student” button is disabled while the exit request is in-flight and re-enabled on completion or error.
 
 Students UI – Group selection
 - The Group dropdown in `StudentSidebar.html` does not auto-select the first group. It includes a leading empty option so the control starts blank and users can clear back to “no group”.

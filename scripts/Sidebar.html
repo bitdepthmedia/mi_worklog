@@ -63,7 +63,7 @@
             <select id="studentGroup" aria-describedby="studentHelp"></select>
           </div>
         </div>
-        <div class="hint">Selecting names disables group, and vice-versa.<br>Hold 'SHIFT' to select multiple students. Hold 'OPTION' <i>(COMMAND on mac)</i> to unselect students.</div>
+        <div class="hint">Selecting names disables group, and vice-versa.<br><br>Hold 'OPTION' <i>('COMMAND' on mac)</i> to select/unselect multiple students.</div>
       </div>
 
       <div class="field" id="grantField" hidden>
@@ -87,7 +87,17 @@
 
     function setBusy(b){ $('submit').disabled = !!b; }
     function showError(msg){ const el=$('error'); el.textContent=msg||''; el.hidden=!msg; $('success').hidden=true; }
-    function showSuccess(msg){ const el=$('success'); el.textContent=msg||''; el.hidden=!msg; $('error').hidden=true; }
+    function showSuccess(msg){
+      const el=$('success');
+      el.textContent=msg||'';
+      el.hidden=!msg;
+      $('error').hidden=true;
+      if (msg) {
+        // Auto-hide success after 10 seconds
+        window.clearTimeout(window.__mi_ok_to);
+        window.__mi_ok_to = window.setTimeout(() => { el.hidden = true; }, 10000);
+      }
+    }
 
     // Populate dropdown by fetching from server (avoids onOpen auth limits)
     (function init(){
@@ -181,8 +191,20 @@
         setBusy(false);
         if (!res || !res.ok) return showError(res && res.message || 'Failed to add task.');
         showSuccess(res.message + ' (Row ' + (res.placedRow||'?') + ')');
-        // Keep inputs for quick next entry; optionally clear taskText
-        $('taskText').value='';
+        // Clear all inputs so user can enter new data
+        $('dateOverride').value = '';
+        $('start').value = '';
+        $('end').value = '';
+        $('taskText').value = '';
+        // Clear selects
+        const taskSel = $('taskOption');
+        if (taskSel) taskSel.selectedIndex = -1; // clear selection even if no blank option
+        const namesEl = $('studentNames');
+        if (namesEl) { Array.from(namesEl.options).forEach(o => o.selected = false); namesEl.disabled = false; }
+        const groupEl = $('studentGroup');
+        if (groupEl) { groupEl.value = ''; groupEl.disabled = false; }
+        const grantSel = $('grantSelect');
+        if (grantSel && !$('grantField').hidden) { grantSel.selectedIndex = -1; }
       }).withFailureHandler(function(err){
         setBusy(false); showError(err && err.message || String(err));
       }).addTask({
