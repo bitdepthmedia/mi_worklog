@@ -1,5 +1,5 @@
 /**
- * @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string, dateOverride?: (string|null), grantSource?: (string|null) }} TaskEntry
+ * @typedef {{ startTime:string, endTime:string, taskOption?:string, taskText?:string, dateOverride?: (string|null), grantSource?: (string|null), studentNames?: string[], studentGroup?: (string|null) }} TaskEntry
  */
 
 /**
@@ -124,11 +124,58 @@ function addTask(entry) {
     console && console.warn && console.warn('Grant source write skipped:', e);
   }
 
+  // Resolve and write Student IDs (Column F) based on optional selections
+  var warnings = [];
+  try {
+    var namesSel = Array.isArray(entry.studentNames) ? entry.studentNames.filter(function(s){ return !!String(s||'').trim(); }) : [];
+    var groupSel = (entry.studentGroup || '').trim();
+    if (namesSel.length && groupSel) {
+      throw new Error('Please choose either specific student names or a group, not both.');
+    }
+    var idsCsv = '';
+    if (namesSel.length || groupSel) {
+      var ref = getActiveStudentsAndGroups();
+      var nameToId = {};
+      (ref.students || []).forEach(function(s){ nameToId[String(s.name)] = String(s.id); });
+      if (namesSel.length) {
+        var ids = [];
+        var seen = {};
+        namesSel.forEach(function(n){
+          var key = String(n);
+          var id = nameToId[key];
+          if (!id) { warnings.push('Name not found or inactive: ' + key); return; }
+          if (seen[id]) return; seen[id] = true; ids.push(id);
+        });
+        idsCsv = ids.join(',');
+      } else if (groupSel) {
+        var idsFromGroup = (ref.groupToStudentIds && ref.groupToStudentIds[groupSel]) || [];
+        if (!idsFromGroup.length) {
+          warnings.push('Selected group has no active students: ' + groupSel);
+          idsCsv = '';
+        } else {
+          // Already sorted by name asc and deduped during build
+          idsCsv = idsFromGroup.join(',');
+        }
+      }
+    }
+    var studentCell = sheet.getRange(targetRow, block.cols.students);
+    // Force text format so comma-separated IDs are not coerced into a large number
+    try { studentCell.setNumberFormat("@"); } catch (fmtErr) { /* ignore format errors */ }
+    studentCell.setValue(idsCsv);
+  } catch (e2) {
+    // Surface validation errors (dual selection) as throw; soft issues as warnings
+    if (String(e2 && e2.message || e2).indexOf('either specific student') !== -1) {
+      throw e2;
+    }
+    console && console.warn && console.warn('Student ID resolution warning:', e2);
+  }
+
   // Sort the block by Start Time ascending (blanks last). Use exact day width.
   var sortWidth = Math.max(block.cols.startTime, block.cols.endTime, block.cols.whatDidYouWorkOn) - block.cols.startTime + 1;
   sheet.getRange(block.startRow, block.cols.startTime, block.endRow - block.startRow + 1, sortWidth)
     .sort([{column: block.cols.startTime, ascending: true}]);
 
-  return {ok:true, day:day, placedRow:targetRow, message:'Task added to ' + day + '.'};
+  var msg = 'Task added to ' + day + '.';
+  if (warnings.length) msg += ' ' + warnings.join(' ');
+  return {ok:true, day:day, placedRow:targetRow, message: msg };
 }
-

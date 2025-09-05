@@ -1,16 +1,16 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-05 06:19 EDT (Unified menu: Open Sidebar)
+Last updated: 2025-09-05 06:37 EDT (Worklog student selection + cache flush)
 
 Files
 - scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`.
 - scripts/ui_menu.gs: Sheets UI glue for menus. Public: `onOpen`.
 - scripts/ui_sidebar.gs: Sidebar composition helpers. Public: `showSidebar`, `include`.
 - scripts/ui_student_sidebar.gs: Student Caseload sidebar server. Public: `showStudentSidebar`, `getStudentSidebarInit`, `addStudentToCaseload`, `exitStudentFromCaseload`. Private helpers: `getGroupNames_`, `getExitReasons_`, `getActiveStudents_`, `getStudentIdLength_`, `validateAddPayload_`, `resolveGroupSelection_`, `parseIsoDate_`, `findStudentHeaderRow_`.
-- scripts/data_refs.gs: Data access for sidebar/reference tabs. Public: `getTaskOptions`, `getGrantSources`.
+- scripts/data_refs.gs: Data access for sidebar/reference tabs. Public: `getTaskOptions`, `getGrantSources`, `getActiveStudentsAndGroups` (cached for 10 min). Private: `cacheKeyActiveStudents_`, `invalidateActiveStudentsAndGroupsCache_`, and `onEdit` to invalidate cache on Student Caseload edits.
 - scripts/utils_time.gs: Time/date utilities. Private: `parseUserTimeToSerial_`, `getTodayWeekday_`, `parseDateOverrideToWeekday_`.
 - scripts/constants.gs: Shared constants for sheet structure and names. Public objects: `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
-- scripts/Sidebar.html: Worklog Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker, a dropdown of task options, and a free‑text field. Calls `addTask` via `google.script.run`.
+- scripts/Sidebar.html: Worklog Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker, a dropdown of task options, and a free‑text field. Adds optional Student selection controls: multi‑select Student Names and single‑select Student Group (mutually exclusive, aria‑described). Calls `addTask` with `studentNames`/`studentGroup`.
 - scripts/StudentSidebar.html: Student Caseload Sidebar UI. Two modes: Add Student and Exit Student. Exit mode supports choosing a reason from dropdown or typing a custom reason. Calls `addStudentToCaseload` and `exitStudentFromCaseload`; dynamically loads Groups, Exit Reasons, Student ID length, and current active students list.
 
 Key flows
@@ -18,7 +18,7 @@ Key flows
 - showSidebar → displays the sidebar (no data reads at open).
 - Sidebar.html → lazily loads task options via `google.script.run.getTaskOptions()` and Grant Sources via `getGrantSources()` after render.
 - StudentSidebar.html → lazily loads groups from `settings!E3:E`, exit reasons from `settings!C3:C`, expected ID length from `settings!D3`, and active students (no exit date) from the Student Caseload sheet. Supports “Add New Group…” which inserts into the first empty cell of `settings!E3:E` via server helper.
-- addTask → parses/validates inputs, resolves target weekday (mapping weekend to Monday), locates the day block, writes values, and sorts by Start Time (column B).
+- addTask → parses/validates inputs, resolves target weekday (mapping weekend to Monday), locates the day block, writes values, and sorts by Start Time (column B). If student names or a group is provided, resolves active Student ID(s) and writes to Column F as comma‑separated IDs (no spaces). Rejects dual selection server‑side.
 
 Assumptions and discovery
 - Day blocks are labeled with uppercase weekday names (e.g., MONDAY). Each day’s block uses the same columns across the sheet.
@@ -33,6 +33,11 @@ Fixed columns (sheet-wide)
 - Grant Source: column E (5)
 - Students: column F (6) [reserved]
 - What did you work on?: column G (7)
+
+Student selection sources (read-only)
+- Student Caseload: B (Student Name), C (Group Name), D (Student ID), G (Exit Date)
+- Active students = rows where G is blank.
+- `getActiveStudentsAndGroups` caches derived structures for ~10 minutes using CacheService.
 
 How to install in Apps Script
 - In the target Google Sheet, open Extensions → Apps Script.

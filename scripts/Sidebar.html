@@ -50,6 +50,22 @@
         <input id="taskText" type="text" placeholder="e.g., Small group reading intervention" />
       </div>
 
+      <div class="field" id="studentChooser">
+        <label for="studentNames">Students (optional)</label>
+        <div id="studentHelp" class="hint">If working with students, please select the student(s) or student group you worked with.</div>
+        <div class="row">
+          <div class="field">
+            <label for="studentNames">Student Names</label>
+            <select id="studentNames" multiple size="6" aria-describedby="studentHelp"></select>
+          </div>
+          <div class="field">
+            <label for="studentGroup">Student Group</label>
+            <select id="studentGroup" aria-describedby="studentHelp"></select>
+          </div>
+        </div>
+        <div class="hint">Selecting names disables group, and vice-versa.</div>
+      </div>
+
       <div class="field" id="grantField" hidden>
         <label for="grantSelect">Grant Source</label>
         <select id="grantSelect"></select>
@@ -107,6 +123,45 @@
       google.script.run.withSuccessHandler(setGrantSources)
         .withFailureHandler(function(){ setGrantSources([]); })
         .getGrantSources();
+
+      // Load students and groups for optional student logging
+      const namesEl = $('studentNames');
+      const groupEl = $('studentGroup');
+      const populateStudents = (res) => {
+        // Students (multi-select)
+        namesEl.innerHTML = '';
+        (res && Array.isArray(res.students) ? res.students : []).forEach(function(s){
+          const opt = document.createElement('option');
+          opt.value = s.name; // value is name per spec; IDs resolved server-side
+          opt.textContent = s.name;
+          namesEl.appendChild(opt);
+        });
+        // Groups (single-select)
+        groupEl.innerHTML = '';
+        const blank = document.createElement('option'); blank.value = ''; blank.textContent = '';
+        groupEl.appendChild(blank);
+        (res && Array.isArray(res.groups) ? res.groups : []).forEach(function(g){
+          if (!g) return;
+          const opt = document.createElement('option');
+          opt.value = g; opt.textContent = g;
+          groupEl.appendChild(opt);
+        });
+      };
+      google.script.run.withSuccessHandler(populateStudents)
+        .withFailureHandler(function(){ populateStudents({students:[],groups:[]}); })
+        .getActiveStudentsAndGroups();
+
+      // Mutual exclusivity between names and group
+      const clearNames = () => { Array.from(namesEl.options).forEach(o => o.selected = false); };
+      const clearGroup = () => { groupEl.value = ''; };
+      const updateLocks = () => {
+        const anyNames = Array.from(namesEl.selectedOptions).length > 0;
+        const hasGroup = !!groupEl.value;
+        if (anyNames) { groupEl.disabled = true; } else { groupEl.disabled = false; }
+        if (hasGroup) { namesEl.disabled = true; } else { namesEl.disabled = false; }
+      };
+      namesEl.addEventListener('change', function(){ if (Array.from(namesEl.selectedOptions).length) { clearGroup(); } updateLocks(); });
+      groupEl.addEventListener('change', function(){ if (groupEl.value) { clearNames(); } updateLocks(); });
     }());
 
     $('submit').addEventListener('click', function(){
@@ -136,7 +191,9 @@
         taskOption: taskOption,
         taskText: taskText,
         dateOverride: dateOverride || null,
-        grantSource: $('grantField').hidden ? null : ($('grantSelect').value || null)
+        grantSource: $('grantField').hidden ? null : ($('grantSelect').value || null),
+        studentNames: Array.from($('studentNames').selectedOptions).map(o => o.value),
+        studentGroup: $('studentGroup').disabled ? null : ($('studentGroup').value || null)
       });
     });
   </script>

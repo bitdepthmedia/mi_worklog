@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 06:19 EDT
+Last updated: 2025-09-05 06:30 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -47,5 +47,29 @@ Server notes (current)
 - Uses `constants.gs` for `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - `include(filename)` returns string content for HTML templating.
 
-Future improvements
-- Add Students column handling (column F) when requirements are finalized.
+Worklog – Student Selection
+- UI additions (Sidebar.html): Added optional chooser under “What did you work on?” with helper copy. Controls:
+  - `#studentNames`: multi-select of Student Names (keyboard accessible; `aria-describedby=studentHelp`).
+  - `#studentGroup`: single-select of Student Group (also `aria-describedby=studentHelp`).
+  - Mutual exclusivity enforced client-side: selecting one or more names disables/clears Group; selecting a Group disables/clears Names. Both controls remain optional for non-student work.
+- Data source and caching: `getActiveStudentsAndGroups()` in `data_refs.gs` reads Student Caseload (B:C:D:G), filters active rows (G blank), normalizes whitespace, and builds:
+  - `students` unique by ID (latest row wins), sorted by Student Name asc.
+  - `groups` unique, non-blank, sorted asc.
+  - `groupToStudentIds` mapping with unique IDs sorted by Student Name asc for determinism.
+  - Results cached with `CacheService` for 600 seconds. Logs “cache hit/miss”.
+- Server behavior (core.gs → addTask):
+  - Extends `TaskEntry` to include `studentNames?: string[]` and `studentGroup?: string|null`.
+  - Validates mutual exclusivity server-side; throws if both provided.
+  - Resolves names→IDs using cached structures; drops missing names and appends a warning to the success message.
+  - If a group is selected and resolves to zero active students, treats as no selection and appends a warning.
+  - Writes Column F with the comma-separated IDs (no spaces) when selection yields IDs; otherwise writes blank. Before writing, sets the target cell number format to text (`@`) to prevent Sheets from coercing `id1,id2` into a single large number.
+  - Never writes names or group labels to the worklog.
+
+Cache invalidation
+- The active students/groups cache is invalidated in two ways:
+  - Immediately after `addStudentToCaseload` and `exitStudentFromCaseload` mutate the Student Caseload sheet.
+  - A simple trigger `onEdit(e)` in `data_refs.gs` clears the cache whenever any edit occurs on the `Student Caseload` sheet (covers manual edits/imports).
+
+Performance and UX
+- One batched read for Student Caseload; derived structures cached ~10 minutes.
+- Deterministic ordering for group expansion (by Student Name asc); IDs deduplicated.

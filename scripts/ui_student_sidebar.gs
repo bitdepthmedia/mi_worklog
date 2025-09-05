@@ -62,6 +62,8 @@ function addStudentToCaseload(payload) {
     { column: 2, ascending: true }
   ]);
 
+  // Invalidate active students/groups cache so Worklog sidebar sees updates
+  try { invalidateActiveStudentsAndGroupsCache_(); } catch (e) { /* ignore */ }
   return { ok: true, message: 'Student added to caseload.', placedRow: insertRow };
 }
 
@@ -99,6 +101,8 @@ function exitStudentFromCaseload(payload) {
 
   // Write Exit Date (G) and Exit Reason (H)
   sheet.getRange(targetRow, 7, 1, 2).setValues([[exitDate, reason]]);
+  // Invalidate active students/groups cache so Worklog sidebar sees updates
+  try { invalidateActiveStudentsAndGroupsCache_(); } catch (e) { /* ignore */ }
   return { ok: true, message: 'Student exited.', row: targetRow };
 }
 
@@ -269,4 +273,3 @@ function onOpenStudentCaseload_() {
     .addItem('Open Caseload Sidebar', 'showStudentSidebar')
     .addToUi();
 }
-
