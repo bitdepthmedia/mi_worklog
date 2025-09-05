@@ -1,10 +1,10 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 04:45
+Last updated: 2025-09-05 05:18
 
 Design
 - Adopted strict SoC across multiple script files:
-  - UI/menu glue in `ui_menu.gs` and `ui_sidebar.gs`.
+- UI/menu glue in `ui_menu.gs`, `ui_sidebar.gs` (Worklog), and `ui_student_sidebar.gs` (Students sidebar server functions).
   - Business logic in `core.gs`.
   - Data access for references in `data_refs.gs`.
   - Time/date helpers in `utils_time.gs`.
@@ -36,11 +36,14 @@ Edge cases
 - If the day block is “full”, the new row writes to the block’s last row before sorting.
 
 UI notes
-- Add an image/drawing and Assign script → `showSidebar` for a one-click entry (platform limitation).
+- Worklog: Add an image/drawing and Assign script → `showSidebar` for a one‑click entry.
+- Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
+- Also adds a `Students` custom menu on open for redundancy.
  - Follow naming and style rules in `docs/coding_conventions.md`.
 
 Server notes (current)
-- `TaskEntry` includes `dateOverride?: string | null` and optional `grantSource`.
+- Worklog: `TaskEntry` includes `dateOverride?: string | null` and optional `grantSource`.
+- Students: `addStudentToCaseload()` validates grade 0–12, numeric Student ID with length from `settings!D3`, required fields, resolves “Add New Group…” into `settings!E3:E`, writes row `[A..H]`, then sorts by Entrance Date (F), Grade (A), Student Name (B). `exitStudentFromCaseload()` writes Exit Date (G) and Exit Reason (H) for the selected active student. Exit reason can be chosen from the dropdown (settings!C3:C) or typed as a custom text input.
 - Uses `constants.gs` for `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - `include(filename)` returns string content for HTML templating.
 

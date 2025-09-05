@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <base target="_top">
+  <style>
+    :root { --bg:#fafbfc; --fg:#111; --muted:#666; --pri:#1a73e8; --border:#e5e7eb; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+    .wrap { padding: 14px 14px 18px; background: var(--bg); color: var(--fg); }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .field { margin: 8px 0 12px; }
+    label { display:block; font-size: 13px; color: #3000bf; margin-bottom: 6px; }
+    input[type="text"], input[type="number"], input[type="date"], select { width:100%; box-sizing: border-box; padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+    .row { display:flex; gap:8px; }
+    .row .field { flex:1; }
+    .hint { font-size:11px; color:var(--muted); margin-top:4px; }
+    .hintBold {font-size:12px; color:#c77100}
+    .mode { display:flex; gap:14px; margin: 8px 0 10px; }
+    .card { border:1px solid var(--border); border-radius:8px; padding:10px; }
+    button { background:var(--pri); color:#fff; border:none; padding:10px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
+    button:disabled { opacity:.6; cursor:not-allowed; }
+    .error { color:#b00020; font-size:14px; margin:6px 0 0; }
+    .success { color:#1b5e20; font-size:14px; margin:6px 0 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>Student Caseload</h2>
+    <div class="mode">
+      <label><input type="radio" name="mode" value="add" checked> Add Student</label>
+      <label><input type="radio" name="mode" value="exit"> Exit Student</label>
+    </div>
+
+    <div id="addCard" class="card">
+      <div class="row">
+        <div class="field">
+          <label for="grade">Student Grade</label>
+          <input id="grade" type="number" min="0" max="12" placeholder="0-12" />
+          <div class="hint">KG = 0</div>
+        </div>
+        <div class="field">
+          <label for="name">Student Name</label>
+          <input id="name" type="text" placeholder="First Last" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="group">Group Name</label>
+        <select id="group"></select>
+        <div id="newGroupWrap" class="field" style="display:none; margin-top:8px;">
+          <input id="newGroup" type="text" placeholder="Type new group name" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="studentId">Student ID#</label>
+          <input id="studentId" type="text" inputmode="numeric" />
+          <div class="hint" id="idHint"></div>
+        </div>
+        <div class="field">
+          <label for="service">Service Area</label>
+          <input id="service" type="text" placeholder="Phonics, MLL Service, Attendance, etc." />
+        </div>
+      </div>
+      <div class="field">
+        <label for="entrance">Entrance Date</label>
+        <input id="entrance" type="date" />
+      </div>
+      <button id="addBtn">Add Student</button>
+      <div class="error" id="addErr" hidden></div>
+      <div class="success" id="addOk" hidden></div>
+    </div>
+
+    <div id="exitCard" class="card" style="display:none;">
+      <div class="field">
+        <label for="studentSel">Select Student</label>
+        <select id="studentSel"></select>
+        <div class="hint">List shows only active students (no Exit Date).</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="exitDate">Exit Date</label>
+          <input id="exitDate" type="date" />
+        </div>
+        <div class="field">
+          <label for="exitReason">Exit Reason</label>
+          <select id="exitReason"></select>
+          <div class="hintBold">Or type a custom reason below.</div>
+          <input id="exitReasonText" type="text" placeholder="Custom exit reason" />
+        </div>
+      </div>
+      <button id="exitBtn">Exit Student</button>
+      <div class="error" id="exitErr" hidden></div>
+      <div class="success" id="exitOk" hidden></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const setHidden = (el, h) => el.hidden = !!h;
+
+    function toggleMode(mode){
+      $('addCard').style.display = mode === 'add' ? 'block' : 'none';
+      $('exitCard').style.display = mode === 'exit' ? 'block' : 'none';
+    }
+
+    // Radio change
+    document.querySelectorAll('input[name="mode"]').forEach(r => {
+      r.addEventListener('change', (e) => toggleMode(e.target.value));
+    });
+
+    // Load init data
+    const init = () => {
+      google.script.run.withSuccessHandler((res) => {
+        // Groups
+        const groupSel = $('group');
+        groupSel.innerHTML = '';
+        (res.groups || []).forEach(g => {
+          const o = document.createElement('option'); o.value = g; o.textContent = g; groupSel.appendChild(o);
+        });
+        $('newGroupWrap').style.display = groupSel.value && groupSel.value.indexOf('Add New Group') === 0 ? 'block' : 'none';
+        groupSel.addEventListener('change', () => {
+          $('newGroupWrap').style.display = groupSel.value && groupSel.value.indexOf('Add New Group') === 0 ? 'block' : 'none';
+        });
+
+        // Exit reasons
+        const exitSel = $('exitReason'); exitSel.innerHTML = '';
+        (res.exitReasons || []).forEach(x => { const o = document.createElement('option'); o.value = x; o.textContent = x; exitSel.appendChild(o); });
+
+        // Active students
+        const stuSel = $('studentSel'); stuSel.innerHTML = '';
+        (res.activeStudents || []).forEach(s => {
+          const o = document.createElement('option');
+          o.value = String(s.row);
+          o.textContent = `${s.name} (ID ${s.id}) – Grade ${s.grade}${s.group ? ' – ' + s.group : ''}`;
+          stuSel.appendChild(o);
+        });
+
+        // ID hint
+        $('idHint').textContent = res.idLength ? `Required: ${res.idLength} digits` : 'Numeric only';
+      }).withFailureHandler(err => {
+        console.error(err);
+      }).getStudentSidebarInit();
+    };
+
+    init();
+
+    function showErr(id, msg){ const el=$(id); el.textContent=msg||''; el.hidden=!msg; }
+    function showOk(id, msg){ const el=$(id); el.textContent=msg||''; el.hidden=!msg; }
+
+    $('addBtn').addEventListener('click', () => {
+      showErr('addErr',''); showOk('addOk','');
+      const payload = {
+        grade: $('grade').value,
+        name: $('name').value,
+        group: $('group').value,
+        newGroup: $('newGroup').value,
+        studentId: $('studentId').value,
+        serviceArea: $('service').value,
+        entranceDate: $('entrance').value
+      };
+      google.script.run.withSuccessHandler(res => {
+        if (!res || !res.ok) return showErr('addErr', res && res.message || 'Failed to add');
+        showOk('addOk', res.message);
+        // refresh active list in case this student is now active
+        init();
+        // clear some fields for next entry
+        $('name').value=''; $('studentId').value=''; $('service').value='';
+      }).withFailureHandler(err => { showErr('addErr', err && err.message || String(err)); })
+      .addStudentToCaseload(payload);
+    });
+
+    $('exitBtn').addEventListener('click', () => {
+      showErr('exitErr',''); showOk('exitOk','');
+      const reasonText = ($('exitReasonText').value || '').trim();
+      const payload = { row: Number($('studentSel').value||0), exitDate: $('exitDate').value, exitReason: reasonText || $('exitReason').value };
+      google.script.run.withSuccessHandler(res => {
+        if (!res || !res.ok) return showErr('exitErr', res && res.message || 'Failed to exit');
+        showOk('exitOk', res.message);
+        init();
+      }).withFailureHandler(err => { showErr('exitErr', err && err.message || String(err)); })
+      .exitStudentFromCaseload(payload);
+    });
+  </script>
+</body>
+</html>

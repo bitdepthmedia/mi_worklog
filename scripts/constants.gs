@@ -10,7 +10,7 @@ var COLUMNS = { startTime: 2, endTime: 3, grantSource: 5, students: 6, work: 7 }
  * @constant
  * @type {{settings:string}}
  */
-var SHEETS = { settings: 'settings' };
+var SHEETS = { settings: 'settings', studentCaseload: 'Student Caseload' };
 
 /**
  * Shared named ranges.
@@ -18,4 +18,3 @@ var SHEETS = { settings: 'settings' };
  * @type {{taskOptions:string}}
  */
 var NAMED_RANGES = { taskOptions: 'TaskOptions' };
-

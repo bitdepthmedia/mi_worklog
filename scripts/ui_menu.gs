@@ -5,10 +5,12 @@
  * @returns {void}
  */
 function onOpen(e) {
-  SpreadsheetApp.getUi()
-    .createMenu('Worklog')
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Worklog')
     .addItem('Open Sidebar', 'showSidebar')
     .addToUi();
-  SpreadsheetApp.getActive().toast('Use Worklog → Open Sidebar to add a task.', 'miWorklog', 6);
+  ui.createMenu('Students')
+    .addItem('Open Caseload Sidebar', 'showStudentSidebar')
+    .addToUi();
+  SpreadsheetApp.getActive().toast('Use Worklog/Students menus to open sidebars.', 'miWorklog', 6);
 }
-
