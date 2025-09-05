@@ -60,3 +60,16 @@ function parseDateOverrideToWeekday_(dateStr) {
   return names[dt.getDay()];
 }
 
+/**
+ * Returns today's calendar date at local spreadsheet timezone (midnight).
+ * @returns {Date}
+ */
+function getTodayDateInTz_() {
+  var tz = SpreadsheetApp.getActive().getSpreadsheetTimeZone() || Session.getScriptTimeZone() || 'America/New_York';
+  var y = Utilities.formatDate(new Date(), tz, 'yyyy');
+  var m = Utilities.formatDate(new Date(), tz, 'MM');
+  var d = Utilities.formatDate(new Date(), tz, 'dd');
+  var dt = new Date(parseInt(y,10), parseInt(m,10)-1, parseInt(d,10));
+  dt.setHours(0,0,0,0);
+  return dt;
+}

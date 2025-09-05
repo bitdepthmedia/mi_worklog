@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin:0; }
+      .wrap { padding:16px 16px 12px; }
+      h3 { margin:0 0 10px; font-size:16px; }
+      .row { display:flex; gap:8px; align-items: end; }
+      .field { flex:1; }
+      label { display:block; font-size:13px; margin:0 0 6px; }
+      input[type="date"] { width:100%; box-sizing:border-box; padding:8px 10px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; }
+      button { background:#1a73e8; color:#fff; border:none; padding:9px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
+      .hint { font-size:12px; color:#666; margin-top:6px; }
+      .error { color:#b00020; font-size:13px; margin-top:8px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h3>Select Week</h3>
+      <div class="row">
+        <div class="field">
+          <label for="dt">Pick any date in the week</label>
+          <input id="dt" type="date" />
+          
+        </div>
+        <div>
+          <button id="goBtn">Go</button>
+        </div>
+      </div>
+      <div class="error" id="err" hidden></div>
+    </div>
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const showErr = (m) => { const el=$('err'); el.textContent=m||''; el.hidden=!m; };
+
+      function go() {
+        showErr('');
+        const val = ($('dt').value || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          showErr('Please choose a valid date (YYYY-MM-DD).');
+          return;
+        }
+        const btn = $('goBtn'); btn.disabled = true;
+        google.script.run.withSuccessHandler((res) => {
+          btn.disabled = false;
+          if (!res || !res.ok) return showErr(res && res.message || 'Failed to show week.');
+          google.script.host.close();
+        }).withFailureHandler((err) => {
+          btn.disabled = false;
+          showErr(err && err.message || String(err));
+        }).showWeekForDate(val);
+      }
+
+      $('goBtn').addEventListener('click', go);
+      // Allow Enter key to submit
+      $('dt').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+    </script>
+  </body>
+</html>

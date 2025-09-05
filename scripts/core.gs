@@ -80,7 +80,18 @@ function addTask(entry) {
   var taskText = (entry.taskText && entry.taskText.trim()) || (entry.taskOption || '').trim();
   if (!taskText) throw new Error('Please provide a task description.');
 
-  var sheet = SpreadsheetApp.getActiveSheet();
+  // Resolve target week sheet from date override or today (creates if missing)
+  var entryDate;
+  if (entry.dateOverride && String(entry.dateOverride).trim()) {
+    // Reuse weekly manager's parser for reliability
+    entryDate = parseYyyyMmDd_(String(entry.dateOverride).trim());
+  } else {
+    entryDate = getTodayDateInTz_();
+  }
+  // Ensure named range exists and week sheet is available
+  ensureNamedRange_();
+  var weekIdx = getWeekIndexForDate_(entryDate);
+  var sheet = getOrCreateWeekSheet_(weekIdx);
   var day;
   if (entry.dateOverride && String(entry.dateOverride).trim()) {
     // Use user override; if weekend, map to MONDAY to fit grid
@@ -175,7 +186,9 @@ function addTask(entry) {
   sheet.getRange(block.startRow, block.cols.startTime, block.endRow - block.startRow + 1, sortWidth)
     .sort([{column: block.cols.startTime, ascending: true}]);
 
-  var msg = 'Task added to ' + day + '.';
+  // Optionally focus the target week for user clarity
+  try { SpreadsheetApp.getActive().setActiveSheet(sheet); } catch (ignore) {}
+  var msg = 'Task added to ' + day + ' in ' + sheet.getName() + '.';
   if (warnings.length) msg += ' ' + warnings.join(' ');
   return {ok:true, day:day, placedRow:targetRow, message: msg };
 }

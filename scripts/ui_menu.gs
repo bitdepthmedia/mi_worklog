@@ -1,15 +1,19 @@
 /**
- * Adds a single "Open Sidebar" menu with entries for Worklog and Students.
+ * Adds a single "Open Sidebars" menu with entries for Worklog and Students.
  * Simple triggers cannot open sidebars; provide menu + toast guidance.
  * @param {GoogleAppsScript.Events.SheetsOnOpen} e - Open event payload
  * @returns {void}
  */
 function onOpen(e) {
   var ui = SpreadsheetApp.getUi();
-  ui.createMenu('Open Sidebar')
-    .addItem('Start Here Details', 'showStartHereSidebar')
-    .addItem('Open Worklog', 'showSidebar')
-    .addItem('Add/Exit Student', 'showStudentSidebar')
+  ui.createMenu('Open Sidebars')
+    .addItem('User Details', 'showStartHereSidebar')
+    .addItem('Edit Worklog', 'showSidebar')
+    .addItem('Add/Exit Students', 'showStudentSidebar')
     .addToUi();
-  SpreadsheetApp.getActive().toast('Use Open Sidebar → Start Here / Worklog / Students.', 'miWorklog', 6);
+  // Register the Worklog week management menu
+  if (typeof registerWorklogMenu_ === 'function') {
+    registerWorklogMenu_(ui);
+  }
+  SpreadsheetApp.getActive().toast('Use Open Sidebars → User Details / Worklog / Students.', 'miWorklog', 6);
 }

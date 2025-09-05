@@ -1,6 +1,6 @@
 miWorklog – Script Dev Notes
 
-Last updated: 2025-09-05 10:36 EDT
+Last updated: 2025-09-05 11:02 EDT
 
 Design
 - Adopted strict SoC across multiple script files:
@@ -13,6 +13,7 @@ Design
 - All functions include JSDoc and input validation where applicable.
 - Batch writes where possible; sorting is scoped to the day block only.
 - Simple triggers can’t open sidebars/dialogs. `onOpen` only adds menu + toast. `Sidebar.html` lazily loads data via `google.script.run`.
+ - Weekly manager UI is exposed via a top-level “Worklog” menu registered from `ui_menu.gs` by calling `registerWorklogMenu_(ui)` (to avoid multiple `onOpen` definitions). A centered modal dialog (`WeekDialog.html`) is used for date selection. Optional wrappers in `ui_buttons.gs` can be assigned to drawings.
 
 Detection logic
 - Single-column-per-day layout: `findDayBlock_` scans down from the weekday label to locate the nearby header row (in‑memory only).
@@ -37,7 +38,7 @@ Edge cases
 - If the day block is “full”, the new row writes to the block’s last row before sorting.
 
 UI notes
-- A single “Open Sidebar” top-level menu is created on open with three items: “Start Here Details” (`showStartHereSidebar`), “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`).
+- A single “Open Sidebar” top-level menu is created on open with three items: “Start Here Details” (`showStartHereSidebar`), “Open Worklog” (`showSidebar`) and “Add/Exit Student” (`showStudentSidebar`). In addition, the Worklog weekly manager registers a separate “Worklog” menu providing week creation/visibility actions.
 - Worklog: Add an image/drawing and Assign script → `showSidebar` for a one‑click entry.
 - Start Here: Add an image/drawing on the `START HERE - DATA ENTRY TAB` sheet and Assign script → `showStartHereSidebar`.
 - Students: Add an image/drawing on the `Student Caseload` sheet and Assign script → `showStudentSidebar`.
@@ -68,6 +69,12 @@ Server notes (current)
 - Uses `constants.gs` for `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - `include(filename)` returns string content for HTML templating.
 
+Worklog – Week routing
+- `addTask()` now determines the correct weekly sheet based on the chosen date (or today), using `ensureNamedRange_()`, `getWeekIndexForDate_(Date)`, and `getOrCreateWeekSheet_(index)` from `weeklyManager.gs`.
+- If the week sheet does not exist, it is created from `Week Template` and configured with E3/E4 formulas.
+- The entry is then inserted into that sheet’s weekday block. Weekend dates are routed to the Monday block by design.
+- After insertion, the active sheet is switched to the target week for immediate visibility.
+
 Worklog – Student Selection
 - UI additions (Sidebar.html): Added optional chooser under “What did you work on?” with helper copy. Controls:
   - `#studentNames`: multi-select of Student Names (keyboard accessible; `aria-describedby=studentHelp`).
@@ -94,6 +101,13 @@ Cache invalidation
 Performance and UX
 - One batched read for Student Caseload; derived structures cached ~10 minutes.
 - Deterministic ordering for group expansion (by Student Name asc); IDs deduplicated.
+
+Weekly manager – Behavior
+- Named range `schoolYearStart` points to `START HERE - DATA ENTRY TAB!B7` and is created on first use if missing.
+- Template sheet `Week Template` is duplicated for `Week 1..52` lazily or in bulk via menu.
+- Each week’s dates are independent: `E3` (Monday) formula `=schoolYearStart - WEEKDAY(schoolYearStart, 3) + 7*(index-1)`; `E4` (Friday) formula `=E3 + 4`.
+- Visibility helpers hide all `Week *` sheets except the active one when jumping to a week; “Show All Weeks” reverses this. Uses `showSheet()/hideSheet()` to avoid API errors.
+- The centered modal date picker opens via `Open Week Selector…` and calls `showWeekForDate(YYYY-MM-DD)`.
 
 Styling
 - StudentSidebar uses a distinct warm background color (`--bg:#fff7e6`) to clearly differentiate it from the Worklog sidebar (`Sidebar.html`), which keeps the neutral `--bg:#fafbfc`.

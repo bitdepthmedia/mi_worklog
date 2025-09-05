@@ -1,6 +1,6 @@
 miWorklog – Script Directory Overview
 
-Last updated: 2025-09-05 10:36 EDT (Worklog clears inputs + auto-hide success; Students disables Add/Exit during operations)
+Last updated: 2025-09-05 11:02 EDT (Fix show/hide API, add button triggers, remove dialog hint)
 
 Files
 - scripts/core.gs: Core business logic. Finds the weekday block, writes entries, and sorts by start time. Public: `addTask`. Private: `findDayBlock_`.
@@ -12,11 +12,15 @@ Files
 - scripts/utils_time.gs: Time/date utilities. Private: `parseUserTimeToSerial_`, `getTodayWeekday_`, `parseDateOverrideToWeekday_`.
 - scripts/constants.gs: Shared constants for sheet structure and names. Public objects: `COLUMNS`, `SHEETS`, `NAMED_RANGES`.
 - scripts/Sidebar.html: Worklog Sidebar UI (HTML/CSS/JS). Provides Start/End time pickers (`<input type="time">` producing 24‑hour `HH:MM`), optional Day/Date picker, a dropdown of task options, and a free‑text field. Adds optional Student selection controls: multi‑select Student Names and single‑select Student Group (mutually exclusive, aria‑described). Calls `addTask` with `studentNames`/`studentGroup`. After a successful add, all inputs are cleared for rapid next entry; the success message remains visible and auto-hides after ~10s.
+  - Behavior: When a date is chosen (or defaulting to today), `addTask` automatically routes the entry to the correct `Week N` sheet, creating it from `Week Template` if needed, and then inserts into the appropriate weekday block (weekends map to Monday). The active sheet is switched to the target week after insertion.
+- scripts/WeekDialog.html: Centered modal dialog (HtmlService) to pick a date and jump to its week. Calls `showWeekForDate`.
+- scripts/weeklyManager.gs: Weekly sheet manager. Public: `showCurrentWeek`, `showWeekForDate`, `generateAllWeeks`, `showAllWeeks`, `openWeekSelectorDialog`. Private: `ensureNamedRange_`, `getTemplateSheet_`, `weekName_`, `mondayOf_`, `getWeekIndexForDate_`, `getOrCreateWeekSheet_`, `configureWeekSheet_`, `hideAllWeeksExcept_`, `parseYyyyMmDd_`, `registerWorklogMenu_`.
+- scripts/ui_buttons.gs: Thin wrappers to assign to drawings/buttons: `triggerShowCurrentWeek()`, `triggerOpenWeekSelector()`.
 - scripts/StartHereSidebar.html: Start Here UI (HTML/CSS/JS). Captures Full Name, District Email, Reporting Buildings (multi-select from `settings!F3:F`), Funding sources (multi-select from `settings!G3:G` with an “Add New Funding…” sentinel that enables a text input). Renders a numeric percent input per selected funding. Client validation requires funding percents to total 100%. Calls `saveStartHereDetails`. On first successful save, alerts the user to share the sheet with addresses from `settings!H3:H`. Uses a distinct cool background color (`--bg:#eef7ff`) to differentiate from other sidebars.
 - scripts/StudentSidebar.html: Student Caseload Sidebar UI. Two modes: Add Student and Exit Student. Exit mode supports choosing a reason from dropdown or typing a custom reason. Calls `addStudentToCaseload` and `exitStudentFromCaseload`; dynamically loads Groups, Exit Reasons, Student ID length, and current active students list. Group dropdown starts with an explicit empty option (no auto-selection) and allows clearing back to no group. Client-side validation enforces required fields: Add requires Grade, Name, Student ID (numeric, optional length), Service Area, Entrance Date; Group optional. Exit requires Student selection, Exit Date, and Exit Reason (from dropdown or custom text). Uses a distinct warm background color to differentiate from the Worklog sidebar. The “Add Student” and “Exit Student” buttons are disabled during their respective operations to signal progress.
 
 Key flows
-- onOpen → adds a single “Open Sidebar” menu with items “Start Here Details”, “Open Worklog”, and “Add/Exit Student”; shows a toast. Does not auto-open UI (simple trigger limitation).
+- onOpen → adds a single “Open Sidebar” menu with items “Start Here Details”, “Open Worklog”, and “Add/Exit Student”; shows a toast. Also registers a separate top-level “Worklog” menu (via `registerWorklogMenu_`) that provides week creation/visibility actions. Does not auto-open UI (simple trigger limitation). You can also assign sheet drawings to `triggerShowCurrentWeek` and `triggerOpenWeekSelector` for one-click access.
 - showSidebar → displays the sidebar (no data reads at open).
 - Sidebar.html → lazily loads task options via `google.script.run.getTaskOptions()` and Grant Sources via `getGrantSources()` after render.
 - StudentSidebar.html → lazily loads groups from `settings!E3:E`, exit reasons from `settings!C3:C`, expected ID length from `settings!D3`, and active students (no exit date) from the Student Caseload sheet. Supports “Add New Group…” which inserts into the first empty cell of `settings!E3:E` via server helper.
@@ -52,6 +56,12 @@ Notes
 - Sorting uses the Start Time column (fixed to column B). Blank rows remain at the bottom after sort.
 - Times are stored as time-only serial fractions (no timezone dependency). Use your preferred time number format in the sheet.
 - Day/Date override is optional. Leaving it blank posts the entry to Today’s weekday; weekend entries map to Monday.
+
+Weekly manager
+- Named range: `schoolYearStart` → points to `'START HERE - DATA ENTRY TAB'!B7` (auto-created on first use).
+- Template: Use a sheet named `Week Template` as the duplication source for week tabs. Weeks are named `Week 1`..`Week 52` and created on demand (or in bulk via menu).
+- Dates per week: Each week sheet sets `E3 = schoolYearStart - WEEKDAY(schoolYearStart, 3) + 7*(index-1)` and `E4 = E3 + 4` to produce Monday/Friday. No cross-sheet dependencies.
+- Visibility: “Show Current Week” and the date picker dialog open the target week and hide other `Week *` sheets. “Show All Weeks” unhides all.
 
 Conventions
 - See `docs/coding_conventions.md` for naming, JSDoc, SoC, validation, security, and style rules.
